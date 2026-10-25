@@ -29,6 +29,8 @@ td:first-child,th:first-child{text-align:left}.dot{color:var(--ac);font-size:15p
 <label>Time of day<select id="fT"><option>All</option><option>Early morning</option><option>Mid-morning</option><option>Late morning</option><option>Evening</option></select></label>
 <label>Noise<select id="fN"><option>All</option><option>Low</option><option>High</option></select></label>
 <label>Wind<select id="fW"><option>All</option><option>Calm</option><option>Moderate</option><option>Windy</option></select></label>
+<label>Wind direction<select id="fWd"><option>All</option></select></label>
+<label>Rain<select id="fRn"><option>All</option><option>Dry</option><option>Rain</option><option>Not recorded</option></select></label>
 <label>Species<select id="fS"><option>All</option></select></label>
 <label>Session date<select id="fD"><option>All</option></select></label>
 <div class="filter-actions"><button class="reset" id="resetFilters" type="button">Reset filters</button></div>
@@ -47,15 +49,16 @@ td:first-child,th:first-child{text-align:left}.dot{color:var(--ac);font-size:15p
 <div class="card"><h2>Richness by wind speed (km/h)</h2><div class="cv"><canvas id="c3"></canvas></div></div>
 <div class="card"><h2>Detection frequency (% of sessions)</h2><div class="cv"><canvas id="c4"></canvas></div></div>
 </div>
+<div class="card" style="margin-bottom:12px"><h2>Session conditions</h2><div class="scroll"><table id="cnd"></table></div><div class="note">From your spreadsheet. A session with no wind direction or rain recorded shows a dash, and is grouped as "Not recorded" in the filters.</div></div>
 <div class="card" style="margin-bottom:12px"><h2>Species by session</h2><div class="scroll"><table id="grid"></table></div></div>
 <div class="grid">
 <div class="card"><h2>Species in filtered sessions</h2><div id="list"></div></div>
 <div class="card"><h2>Incidental records (outside the count)</h2>
-<table><tr><th>Species</th><th>Date</th><th>Status</th></tr><tr><td>Cirl Bunting</td><td>24/10</td><td>Unconfirmed</td></tr></table>
+<table><tr><th>Species</th><th>Date</th><th>Status</th></tr><tr><td>Cirl Bunting</td><td>25/10</td><td>Unconfirmed</td></tr></table>
 <div class="note">Kept out of richness. Update the status as you save the recording, get a photo or submit to eBird.</div></div>
 </div>
 <div class="card" style="margin-bottom:12px"><h2>Species guide</h2><div class="sg" id="sg"></div><div class="note">Cards follow your filters. Each links to its Wikipedia page for photos and calls.</div></div>
-<div class="note">Start time is used here as a stand-in for minutes after sunrise. Once the FME workflow adds Open-Meteo sunrise times, swap that chart's axis.</div>
+<div class="note">Start hour is the time each count began, on a 24-hour clock.</div>
 <script>
 const B='Eurasian Blackbird',H='House Sparrow',G='European Greenfinch',F='European Goldfinch',K='Eurasian Skylark',R='Redpoll',L='Masked Lapwing',Y='Silvereye';
 let S=[
@@ -90,21 +93,29 @@ function toSessions(csv){
     const yr=dm&&dm[3]?(dm[3].length==2?'20'+dm[3]:dm[3]):'2026';
     const key=dm?yr+dm[2].padStart(2,'0')+dm[1].padStart(2,'0'):'';
     out.push({id:g('Session_ID')||('S'+String(k+1).padStart(3,'0')),d:dm?dm[1].padStart(2,'0')+'/'+dm[2].padStart(2,'0'):g('Date'),
-      h:isNaN(h)?12:h,w:parseFloat(g('Wind_Kmh'))||0,n:/high/i.test(g('Background_Noise'))?'High':'Low',
+      h:isNaN(h)?12:h,w:parseFloat(g('Wind_Kmh'))||0,temp:parseFloat(g('Temperature_C')),dir:g('Wind_Direction').toUpperCase().replace(/\s+/g,''),rain:parseFloat(g('Rain_mm')),n:/high/i.test(g('Background_Noise'))?'High':'Low',
       t:(g('Time_of_Day')||'Unknown').toLowerCase().replace(/^./,c=>c.toUpperCase()),sp:sp,_k:key+String(Math.round((isNaN(h)?12:h)*100)).padStart(4,'0')});
   });
   return out.sort((a,b)=>a._k<b._k?-1:a._k>b._k?1:0);
 }
 function populate(){
-  const keep={S:fS.value,D:fD.value,T:fT.value};
-  fS.length=1;fD.length=1;fT.length=1;
+  const keep={S:fS.value,D:fD.value,T:fT.value,W:fWd.value};
+  fS.length=1;fD.length=1;fT.length=1;fWd.length=1;
   [...new Set(S.flatMap(s=>s.sp))].sort().forEach(s=>fS.add(new Option(s)));
   S.forEach(s=>fD.add(new Option(s.d,s.id)));
   const tods=[...new Set(S.map(s=>s.t))];
   tods.sort((a,b)=>{const x=TOD.indexOf(a),y=TOD.indexOf(b);return (x<0?99:x)-(y<0?99:y)}).forEach(t=>fT.add(new Option(t)));
+  [...new Set(S.map(x=>x.dir||'Not recorded'))].sort((a,b)=>{const x=CMP.indexOf(a),y=CMP.indexOf(b);return (x<0?99:x)-(y<0?99:y)}).forEach(d=>fWd.add(new Option(d)));
+  if([...fWd.options].some(o=>o.value==keep.W))fWd.value=keep.W;
   if([...fS.options].some(o=>o.value==keep.S))fS.value=keep.S;
   if([...fD.options].some(o=>o.value==keep.D))fD.value=keep.D;
   if([...fT.options].some(o=>o.value==keep.T))fT.value=keep.T;
+}
+const CMP=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+const rainCat=s=>isNaN(s.rain)?'Not recorded':(s.rain>0?'Rain':'Dry');
+function drawCond(sel){
+  const f=v=>(v==null||isNaN(v))?'-':(Math.round(v*10)/10);
+  document.getElementById('cnd').innerHTML='<tr><th>Date</th><th>Time of day</th><th>Noise</th><th>Wind km/h</th><th>Direction</th><th>Rain mm</th><th>Temp C</th><th>Species</th></tr>'+sel.map(s=>'<tr><td>'+s.d+'</td><td>'+s.t+'</td><td>'+s.n+'</td><td>'+f(s.w)+'</td><td>'+(s.dir||'-')+'</td><td>'+f(s.rain)+'</td><td>'+f(s.temp)+'</td><td>'+s.sp.length+'</td></tr>').join('');
 }
 async function loadData(){
   const note=document.getElementById('srcnote');
@@ -128,7 +139,7 @@ const ch={};
 function mk(id,cfg){if(ch[id])ch[id].destroy();ch[id]=new Chart(document.getElementById(id),cfg)}
 const ax=t=>({title:{display:!!t,text:t},beginAtZero:true,ticks:{precision:0}});
 function render(){
-const sel=S.filter(s=>(fT.value=='All'||s.t==fT.value)&&(fN.value=='All'||s.n==fN.value)&&(fW.value=='All'||wc(s.w)==fW.value)&&(fS.value=='All'||s.sp.includes(fS.value))&&(fD.value=='All'||s.id==fD.value));
+const sel=S.filter(s=>(fT.value=='All'||s.t==fT.value)&&(fN.value=='All'||s.n==fN.value)&&(fW.value=='All'||wc(s.w)==fW.value)&&(fS.value=='All'||s.sp.includes(fS.value))&&(fD.value=='All'||s.id==fD.value)&&(fWd.value=='All'||(s.dir||'Not recorded')==fWd.value)&&(fRn.value=='All'||rainCat(s)==fRn.value));
 const n=sel.length,sp=[...new Set(sel.flatMap(s=>s.sp))];
 k1.textContent=n;k2.textContent=sp.length;
 k3.textContent=n?(sel.reduce((a,s)=>a+s.sp.length,0)/n).toFixed(1):'0';
@@ -142,7 +153,7 @@ mk('c4',{type:'bar',data:{labels:fr.map(f=>f[0]),datasets:[{data:fr.map(f=>f[1])
 grid.innerHTML='<tr><th>Species</th>'+sel.map(s=>'<th>'+s.d+'</th>').join('')+'</tr>'+sp.sort().map(x=>'<tr><td>'+x+'</td>'+sel.map(s=>'<td>'+(s.sp.includes(x)?'<span class="dot">&#9679;</span>':'')+'</td>').join('')+'</tr>').join('');
 list.innerHTML=sp.map(x=>'<span class="tag">'+x+'</span>').join('')||'<span class="note">No sessions match these filters.</span>';
 sg.innerHTML=sp.map(x=>{const i=INFO[x]||['','','Unlisted','No guide entry yet for this species.',x.replace(/ /g,'_')];const key='bird-'+i[4].replace(/[^a-z0-9]/gi,'-');const chosen=fS.value===x;return '<div class="sc '+(chosen?'selected':'')+'" tabindex="0" role="button" aria-pressed="'+chosen+'" data-species="'+x+'" title="Click to filter by '+x+'"><img id="'+key+'" alt="'+x+'" loading="lazy" data-wiki-title="'+i[4]+'" data-bird-name="'+x+'"><span class="bdg">'+i[2]+'</span><b>'+x+'</b><br><i>'+i[0]+'</i><br>'+i[1]+'<br>'+i[3]+'<br><a href="https://en.wikipedia.org/wiki/'+i[4]+'" target="_blank" rel="noopener">Photo source / Wikipedia</a></div>'}).join('');
-loadBirdImages();
+drawCond(sel);loadBirdImages();
 }
 const birdImageCache={},creditCache={};
 function esc(t){return String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
@@ -195,8 +206,8 @@ const INFO={
 'Masked Lapwing':['Vanellus miles','Charadriidae','Native','Large plover with yellow face wattles, also called spur-winged plover. Reached NZ on its own in the 1930s.','Masked_lapwing'],
 'European Goldfinch':['Carduelis carduelis','Fringillidae','Introduced','Red face and gold wing bars with a tinkling call, often feeding on seed heads.','European_goldfinch'],
 'Silvereye':['Zosterops lateralis','Zosteropidae','Native','Small green bird with a white eye ring, known as tauhou. Reached NZ on its own in the 1850s.','Silvereye']};
-[fT,fN,fW,fS,fD].forEach(e=>e.onchange=render);
-document.getElementById('resetFilters').addEventListener('click',()=>{[fT,fN,fW,fS,fD].forEach(e=>e.value='All');render();});
+[fT,fN,fW,fS,fD,fWd,fRn].forEach(e=>e.onchange=render);
+document.getElementById('resetFilters').addEventListener('click',()=>{[fT,fN,fW,fS,fD,fWd,fRn].forEach(e=>e.value='All');render();});
 function chooseSpecies(card){if(!card||card.closest('a'))return;const species=card.dataset.species;if(!species)return;fS.value=(fS.value===species?'All':species);render();}
 sg.addEventListener('click',e=>{if(e.target.closest('a'))return;chooseSpecies(e.target.closest('.sc'));});
 sg.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('sc')){e.preventDefault();chooseSpecies(e.target);}});
