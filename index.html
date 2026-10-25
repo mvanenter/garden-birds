@@ -30,7 +30,8 @@ td:first-child,th:first-child{text-align:left}.dot{color:var(--ac);font-size:15p
 <label>Noise<select id="fN"><option>All</option><option>Low</option><option>High</option></select></label>
 <label>Wind<select id="fW"><option>All</option><option>Calm</option><option>Moderate</option><option>Windy</option></select></label>
 <label>Wind direction<select id="fWd"><option>All</option></select></label>
-<label>Rain<select id="fRn"><option>All</option><option>Dry</option><option>Rain</option><option>Not recorded</option></select></label>
+<label>Rain<select id="fRn"><option>All</option><option value="Dry">Dry (0 mm)</option><option value="Light">Light (up to 20 mm)</option><option value="Medium">Medium (21 to 49 mm)</option><option value="Heavy">Heavy (50 mm or more)</option><option>Not recorded</option></select></label>
+<label>Rain chance<select id="fCh"><option>All</option><option value="Low">Low (0 to 20%)</option><option value="Medium">Medium (21 to 60%)</option><option value="High">High (61% or more)</option><option>Not recorded</option></select></label>
 <label>Species<select id="fS"><option>All</option></select></label>
 <label>Session date<select id="fD"><option>All</option></select></label>
 <div class="filter-actions"><button class="reset" id="resetFilters" type="button">Reset filters</button></div>
@@ -42,14 +43,16 @@ td:first-child,th:first-child{text-align:left}.dot{color:var(--ac);font-size:15p
 <div class="card kpi"><b id="k2"></b><span>Species (in-session)</span></div>
 <div class="card kpi"><b id="k3"></b><span>Mean richness</span></div>
 <div class="card kpi"><b id="k4"></b><span>Latest session richness</span></div>
+<div class="card kpi"><b id="k5"></b><span>Rain recorded (mm)</span></div>
 </div>
 <div class="grid">
 <div class="card"><h2>Richness by date</h2><div class="cv"><canvas id="c1"></canvas></div></div>
 <div class="card"><h2>Richness by start time (hour of day)</h2><div class="cv"><canvas id="c2"></canvas></div></div>
 <div class="card"><h2>Richness by wind speed (km/h)</h2><div class="cv"><canvas id="c3"></canvas></div></div>
 <div class="card"><h2>Detection frequency (% of sessions)</h2><div class="cv"><canvas id="c4"></canvas></div></div>
+<div class="card"><h2>Rain by session (mm)</h2><div class="cv"><canvas id="c5"></canvas></div><div class="note" id="rnote"></div></div>
 </div>
-<div class="card" style="margin-bottom:12px"><h2>Session conditions</h2><div class="scroll"><table id="cnd"></table></div><div class="note">From your spreadsheet. A session with no wind direction or rain recorded shows a dash, and is grouped as "Not recorded" in the filters.</div></div>
+<div class="card" style="margin-bottom:12px"><h2>Session conditions</h2><div class="scroll"><table id="cnd"></table></div><div class="note">From your spreadsheet. A session with no wind direction or rain recorded shows a dash, and is grouped as "Not recorded" in the filters. Rain classes: Dry is 0 mm, Light up to 20 mm, Medium 21 to 49 mm, Heavy 50 mm or more.</div></div>
 <div class="card" style="margin-bottom:12px"><h2>Species by session</h2><div class="scroll"><table id="grid"></table></div></div>
 <div class="grid">
 <div class="card"><h2>Species in filtered sessions</h2><div id="list"></div></div>
@@ -93,7 +96,7 @@ function toSessions(csv){
     const yr=dm&&dm[3]?(dm[3].length==2?'20'+dm[3]:dm[3]):'2026';
     const key=dm?yr+dm[2].padStart(2,'0')+dm[1].padStart(2,'0'):'';
     out.push({id:g('Session_ID')||('S'+String(k+1).padStart(3,'0')),d:dm?dm[1].padStart(2,'0')+'/'+dm[2].padStart(2,'0'):g('Date'),
-      h:isNaN(h)?12:h,w:parseFloat(g('Wind_Kmh'))||0,temp:parseFloat(g('Temperature_C')),dir:g('Wind_Direction').toUpperCase().replace(/\s+/g,''),rain:parseFloat(g('Rain_mm')),n:/high/i.test(g('Background_Noise'))?'High':'Low',
+      h:isNaN(h)?12:h,w:parseFloat(g('Wind_Kmh'))||0,temp:parseFloat(g('Temperature_C')),dir:g('Wind_Direction').toUpperCase().replace(/\s+/g,''),rain:parseFloat(g('Rain_mm')),chance:parseFloat(g('Rain_Chance_Pct').replace('%','')),n:/high/i.test(g('Background_Noise'))?'High':'Low',
       t:(g('Time_of_Day')||'Unknown').toLowerCase().replace(/^./,c=>c.toUpperCase()),sp:sp,_k:key+String(Math.round((isNaN(h)?12:h)*100)).padStart(4,'0')});
   });
   return out.sort((a,b)=>a._k<b._k?-1:a._k>b._k?1:0);
@@ -112,10 +115,15 @@ function populate(){
   if([...fT.options].some(o=>o.value==keep.T))fT.value=keep.T;
 }
 const CMP=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
-const rainCat=s=>isNaN(s.rain)?'Not recorded':(s.rain>0?'Rain':'Dry');
+const chanceCat=s=>isNaN(s.chance)?'Not recorded':(s.chance<=20?'Low':s.chance<=60?'Medium':'High');
+const rainCat=s=>isNaN(s.rain)?'Not recorded':(s.rain<=0?'Dry':s.rain<=20?'Light':s.rain<50?'Medium':'Heavy');
 function drawCond(sel){
+  const rs=sel.filter(s=>!isNaN(s.rain));
+  document.getElementById('k5').textContent=rs.length?(Math.round(rs.reduce((a,s)=>a+s.rain,0)*10)/10):'-';
+  document.getElementById('rnote').textContent=rs.length?'':'No rain readings in the sheet yet. Fill in Rain_mm, using 0 for dry counts.';
+  mk('c5',{type:'bar',data:{labels:sel.map(s=>s.d),datasets:[{data:sel.map(s=>isNaN(s.rain)?null:s.rain),backgroundColor:ac2}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+' mm'}}},scales:{y:{title:{display:true,text:'Rain (mm)'},beginAtZero:true},x:{}}}});
   const f=v=>(v==null||isNaN(v))?'-':(Math.round(v*10)/10);
-  document.getElementById('cnd').innerHTML='<tr><th>Date</th><th>Time of day</th><th>Noise</th><th>Wind km/h</th><th>Direction</th><th>Rain mm</th><th>Temp C</th><th>Species</th></tr>'+sel.map(s=>'<tr><td>'+s.d+'</td><td>'+s.t+'</td><td>'+s.n+'</td><td>'+f(s.w)+'</td><td>'+(s.dir||'-')+'</td><td>'+f(s.rain)+'</td><td>'+f(s.temp)+'</td><td>'+s.sp.length+'</td></tr>').join('');
+  document.getElementById('cnd').innerHTML='<tr><th>Date</th><th>Time of day</th><th>Noise</th><th>Wind km/h</th><th>Direction</th><th>Rain mm</th><th>Rain class</th><th>Rain chance %</th><th>Temp C</th><th>Species</th></tr>'+sel.map(s=>'<tr><td>'+s.d+'</td><td>'+s.t+'</td><td>'+s.n+'</td><td>'+f(s.w)+'</td><td>'+(s.dir||'-')+'</td><td>'+f(s.rain)+'</td><td>'+rainCat(s)+'</td><td>'+f(s.chance)+'</td><td>'+f(s.temp)+'</td><td>'+s.sp.length+'</td></tr>').join('');
 }
 async function loadData(){
   const note=document.getElementById('srcnote');
@@ -139,7 +147,7 @@ const ch={};
 function mk(id,cfg){if(ch[id])ch[id].destroy();ch[id]=new Chart(document.getElementById(id),cfg)}
 const ax=t=>({title:{display:!!t,text:t},beginAtZero:true,ticks:{precision:0}});
 function render(){
-const sel=S.filter(s=>(fT.value=='All'||s.t==fT.value)&&(fN.value=='All'||s.n==fN.value)&&(fW.value=='All'||wc(s.w)==fW.value)&&(fS.value=='All'||s.sp.includes(fS.value))&&(fD.value=='All'||s.id==fD.value)&&(fWd.value=='All'||(s.dir||'Not recorded')==fWd.value)&&(fRn.value=='All'||rainCat(s)==fRn.value));
+const sel=S.filter(s=>(fT.value=='All'||s.t==fT.value)&&(fN.value=='All'||s.n==fN.value)&&(fW.value=='All'||wc(s.w)==fW.value)&&(fS.value=='All'||s.sp.includes(fS.value))&&(fD.value=='All'||s.id==fD.value)&&(fWd.value=='All'||(s.dir||'Not recorded')==fWd.value)&&(fRn.value=='All'||rainCat(s)==fRn.value)&&(fCh.value=='All'||chanceCat(s)==fCh.value));
 const n=sel.length,sp=[...new Set(sel.flatMap(s=>s.sp))];
 k1.textContent=n;k2.textContent=sp.length;
 k3.textContent=n?(sel.reduce((a,s)=>a+s.sp.length,0)/n).toFixed(1):'0';
@@ -206,8 +214,8 @@ const INFO={
 'Masked Lapwing':['Vanellus miles','Charadriidae','Native','Large plover with yellow face wattles, also called spur-winged plover. Reached NZ on its own in the 1930s.','Masked_lapwing'],
 'European Goldfinch':['Carduelis carduelis','Fringillidae','Introduced','Red face and gold wing bars with a tinkling call, often feeding on seed heads.','European_goldfinch'],
 'Silvereye':['Zosterops lateralis','Zosteropidae','Native','Small green bird with a white eye ring, known as tauhou. Reached NZ on its own in the 1850s.','Silvereye']};
-[fT,fN,fW,fS,fD,fWd,fRn].forEach(e=>e.onchange=render);
-document.getElementById('resetFilters').addEventListener('click',()=>{[fT,fN,fW,fS,fD,fWd,fRn].forEach(e=>e.value='All');render();});
+[fT,fN,fW,fS,fD,fWd,fRn,fCh].forEach(e=>e.onchange=render);
+document.getElementById('resetFilters').addEventListener('click',()=>{[fT,fN,fW,fS,fD,fWd,fRn,fCh].forEach(e=>e.value='All');render();});
 function chooseSpecies(card){if(!card||card.closest('a'))return;const species=card.dataset.species;if(!species)return;fS.value=(fS.value===species?'All':species);render();}
 sg.addEventListener('click',e=>{if(e.target.closest('a'))return;chooseSpecies(e.target.closest('.sc'));});
 sg.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('sc')){e.preventDefault();chooseSpecies(e.target);}});
