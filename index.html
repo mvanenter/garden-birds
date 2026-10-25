@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Garden Bird Survey Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#f6f5f0;--card:#fff;--tx:#1f2a24;--mut:#6b756e;--ac:#2f7d5b;--ac2:#d98a2b;--bd:#dcdad0;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141a17;--card:#1d2621;--tx:#e8ede9;--mut:#9aa69e;--ac:#5cc79a;--ac2:#f0a94a;--bd:#2e3a33;color-scheme:dark}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,sans-serif;padding:16px}
+h1{font-size:20px;margin:0 0 2px}.sub{color:var(--mut);font-size:13px;margin-bottom:14px}
+.filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;align-items:end}.filter-actions{display:flex;gap:8px;align-items:end}button.reset{background:var(--ac);color:white;border:0;border-radius:8px;padding:7px 11px;cursor:pointer;font:inherit;font-size:12px}button.reset:hover{opacity:.88}.hint{font-size:12px;color:var(--mut);margin:-5px 0 12px}
+.filters label{font-size:12px;color:var(--mut);display:flex;flex-direction:column;gap:3px}
+select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:6px 8px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px}
+.kpi b{display:block;font-size:26px;color:var(--ac)}.kpi span{font-size:12px;color:var(--mut)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px;margin-bottom:12px}
+.card h2{font-size:13px;margin:0 0 8px;color:var(--mut);font-weight:600}
+.cv{position:relative;height:210px}
+.scroll{overflow-x:auto}table{border-collapse:collapse;font-size:12px;width:100%}
+th,td{padding:4px 7px;text-align:center;border-bottom:1px solid var(--bd);white-space:nowrap}
+td:first-child,th:first-child{text-align:left}.dot{color:var(--ac);font-size:15px}
+.tag{display:inline-block;background:var(--bg);border:1px solid var(--bd);border-radius:99px;padding:2px 9px;margin:2px;font-size:12px}
+.note{font-size:12px;color:var(--mut);margin-top:10px}.sg{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}.sc{border:1px solid var(--bd);border-radius:10px;padding:10px;font-size:13px;line-height:1.45;overflow:hidden;cursor:pointer;transition:transform .15s,border-color .15s}.sc:hover{transform:translateY(-2px);border-color:var(--ac)}.sc.selected{outline:2px solid var(--ac);background:color-mix(in srgb,var(--ac) 7%,var(--card))}.sc:focus-visible{outline:2px solid var(--ac)}.sc img{display:block;width:100%;height:150px;object-fit:cover;border-radius:7px;margin-bottom:9px;background:var(--bg)}.sc i{color:var(--mut)}.sc a{color:var(--ac)}.bdg{float:right;font-size:11px;border-radius:99px;padding:1px 8px;border:1px solid var(--bd)}.cr{font-size:10.5px;color:var(--mut);margin:-4px 0 8px;line-height:1.3}.cr a{color:var(--mut)}
+</style></head><body>
+<h1>Garden Bird Survey</h1>
+<div class="sub">10-minute Merlin Sound ID counts, back garden, from 20 Oct 2026.</div>
+<div class="filters">
+<label>Time of day<select id="fT"><option>All</option><option>Early morning</option><option>Mid-morning</option><option>Late morning</option><option>Evening</option></select></label>
+<label>Noise<select id="fN"><option>All</option><option>Low</option><option>High</option></select></label>
+<label>Wind<select id="fW"><option>All</option><option>Calm</option><option>Moderate</option><option>Windy</option></select></label>
+<label>Species<select id="fS"><option>All</option></select></label>
+<label>Session date<select id="fD"><option>All</option></select></label>
+<div class="filter-actions"><button class="reset" id="resetFilters" type="button">Reset filters</button></div>
+</div>
+<div class="note" id="srcnote"></div>
+<div class="hint">Interactive tip: click a bird card to filter by species, or click a date bar to focus on one session.</div>
+<div class="kpis">
+<div class="card kpi"><b id="k1"></b><span>Sessions</span></div>
+<div class="card kpi"><b id="k2"></b><span>Species (in-session)</span></div>
+<div class="card kpi"><b id="k3"></b><span>Mean richness</span></div>
+<div class="card kpi"><b id="k4"></b><span>Latest session richness</span></div>
+</div>
+<div class="grid">
+<div class="card"><h2>Richness by date</h2><div class="cv"><canvas id="c1"></canvas></div></div>
+<div class="card"><h2>Richness by start time (hour of day)</h2><div class="cv"><canvas id="c2"></canvas></div></div>
+<div class="card"><h2>Richness by wind speed (km/h)</h2><div class="cv"><canvas id="c3"></canvas></div></div>
+<div class="card"><h2>Detection frequency (% of sessions)</h2><div class="cv"><canvas id="c4"></canvas></div></div>
+</div>
+<div class="card" style="margin-bottom:12px"><h2>Species by session</h2><div class="scroll"><table id="grid"></table></div></div>
+<div class="grid">
+<div class="card"><h2>Species in filtered sessions</h2><div id="list"></div></div>
+<div class="card"><h2>Incidental records (outside the count)</h2>
+<table><tr><th>Species</th><th>Date</th><th>Status</th></tr><tr><td>Cirl Bunting</td><td>24/10</td><td>Unconfirmed</td></tr></table>
+<div class="note">Kept out of richness. Update the status as you save the recording, get a photo or submit to eBird.</div></div>
+</div>
+<div class="card" style="margin-bottom:12px"><h2>Species guide</h2><div class="sg" id="sg"></div><div class="note">Cards follow your filters. Each links to its Wikipedia page for photos and calls.</div></div>
+<div class="note">Start time is used here as a stand-in for minutes after sunrise. Once the FME workflow adds Open-Meteo sunrise times, swap that chart's axis.</div>
+<script>
+const B='Eurasian Blackbird',H='House Sparrow',G='European Greenfinch',F='European Goldfinch',K='Eurasian Skylark',R='Redpoll',L='Masked Lapwing',Y='Silvereye';
+let S=[
+{id:'S001',d:'20/10',h:9.67,w:22,n:'High',t:'Mid-morning',sp:[R,G,B,'Kelp Gull',K,H,'European Starling',L,F]},
+{id:'S002',d:'21/10',h:18,w:27,n:'Low',t:'Evening',sp:[B,H]},
+{id:'S003',d:'22/10',h:10.1,w:12,n:'Low',t:'Mid-morning',sp:[B,H,G,F]},
+{id:'S004',d:'23/10',h:11,w:23,n:'High',t:'Late morning',sp:[K,Y,G]},
+{id:'S005',d:'24/10',h:8.27,w:14,n:'Low',t:'Early morning',sp:[K,B,H,F,L]},
+{id:'S006',d:'25/10',h:8.3,w:20,n:'Low',t:'Early morning',sp:[K,B,H,R]}];
+const wc=w=>w<15?'Calm':w<25?'Moderate':'Windy';
+// Paste your Google Sheets "Publish to web" CSV link between the quotes to go live.
+const SHEET_CSV_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vTBiaSWQQ8Pbt8uWfbTiWlSV6aZEmzjNmSOJ7tboS8yR14uPpNZbuGizy11VGwNggqU_fXKk0OUKqRx/pub?output=csv';
+const ALIAS={'Common Redpoll':'Redpoll','Lesser Redpoll':'Redpoll','Southern Black-backed Gull':'Kelp Gull','Common Blackbird':'Eurasian Blackbird','Common Starling':'European Starling','Spur-winged Plover':'Masked Lapwing'};
+const TOD=['Early morning','Mid-morning','Late morning','Midday','Afternoon','Evening'];
+function parseCSV(t){const rows=[];let r=[],f='',q=false;for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c=='"'){if(t[i+1]=='"'){f+='"';i++}else q=false}else f+=c}else if(c=='"')q=true;else if(c==','){r.push(f);f=''}else if(c=='\n'||c=='\r'){if(c=='\r'&&t[i+1]=='\n')i++;r.push(f);f='';rows.push(r);r=[]}else f+=c}if(f!==''||r.length){r.push(f);rows.push(r)}return rows}
+function toSessions(csv){
+  const rows=parseCSV(csv).filter(r=>r.some(x=>x.trim()));
+  if(!rows.length)return [];
+  const hdr=rows.shift().map(h=>h.trim());
+  const out=[];
+  rows.forEach((r,k)=>{
+    const g=n=>{const i=hdr.indexOf(n);return i<0?'':(r[i]||'').trim()};
+    const birds=g('Birds_Recorded');
+    if(!g('Date')||!birds)return;
+    const dm=g('Date').match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+    const tm=g('Start_Time').match(/(\d{1,2}):(\d{2})\s*([ap]m)?/i);
+    let h=NaN;
+    if(tm){const hh=+tm[1],ap=(tm[3]||'').toLowerCase();h=(ap?hh%12+(ap=='pm'?12:0):hh)+(+tm[2])/60}
+    let sp=birds.split(/[,\n;]+/).map(x=>x.trim()).filter(Boolean).map(x=>ALIAS[x]||x);
+    if(sp.length==1&&/^(none|no birds)$/i.test(sp[0]))sp=[];
+    sp=[...new Set(sp)];
+    const yr=dm&&dm[3]?(dm[3].length==2?'20'+dm[3]:dm[3]):'2026';
+    const key=dm?yr+dm[2].padStart(2,'0')+dm[1].padStart(2,'0'):'';
+    out.push({id:g('Session_ID')||('S'+String(k+1).padStart(3,'0')),d:dm?dm[1].padStart(2,'0')+'/'+dm[2].padStart(2,'0'):g('Date'),
+      h:isNaN(h)?12:h,w:parseFloat(g('Wind_Kmh'))||0,n:/high/i.test(g('Background_Noise'))?'High':'Low',
+      t:(g('Time_of_Day')||'Unknown').toLowerCase().replace(/^./,c=>c.toUpperCase()),sp:sp,_k:key+String(Math.round((isNaN(h)?12:h)*100)).padStart(4,'0')});
+  });
+  return out.sort((a,b)=>a._k<b._k?-1:a._k>b._k?1:0);
+}
+function populate(){
+  const keep={S:fS.value,D:fD.value,T:fT.value};
+  fS.length=1;fD.length=1;fT.length=1;
+  [...new Set(S.flatMap(s=>s.sp))].sort().forEach(s=>fS.add(new Option(s)));
+  S.forEach(s=>fD.add(new Option(s.d,s.id)));
+  const tods=[...new Set(S.map(s=>s.t))];
+  tods.sort((a,b)=>{const x=TOD.indexOf(a),y=TOD.indexOf(b);return (x<0?99:x)-(y<0?99:y)}).forEach(t=>fT.add(new Option(t)));
+  if([...fS.options].some(o=>o.value==keep.S))fS.value=keep.S;
+  if([...fD.options].some(o=>o.value==keep.D))fD.value=keep.D;
+  if([...fT.options].some(o=>o.value==keep.T))fT.value=keep.T;
+}
+async function loadData(){
+  const note=document.getElementById('srcnote');
+  if(SHEET_CSV_URL){
+    try{
+      const r=await fetch(SHEET_CSV_URL+(SHEET_CSV_URL.includes('?')?'&':'?')+'t='+Date.now());
+      if(!r.ok)throw new Error('http');
+      const rows=toSessions(await r.text());
+      if(!rows.length)throw new Error('empty');
+      S=rows;
+      note.textContent='Live from your spreadsheet. Loaded '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'. Refreshes every 5 minutes.';
+    }catch(e){note.textContent='Could not read the spreadsheet, showing the last data loaded.'}
+  }else note.textContent='Showing built-in sample data. Add your published spreadsheet link to SHEET_CSV_URL to go live.';
+  populate();render();
+}
+
+const cs=getComputedStyle(document.documentElement);
+const ac=cs.getPropertyValue('--ac').trim(),ac2=cs.getPropertyValue('--ac2').trim(),mut=cs.getPropertyValue('--mut').trim(),bd=cs.getPropertyValue('--bd').trim();
+Chart.defaults.color=mut;Chart.defaults.borderColor=bd;Chart.defaults.maintainAspectRatio=false;
+const ch={};
+function mk(id,cfg){if(ch[id])ch[id].destroy();ch[id]=new Chart(document.getElementById(id),cfg)}
+const ax=t=>({title:{display:!!t,text:t},beginAtZero:true,ticks:{precision:0}});
+function render(){
+const sel=S.filter(s=>(fT.value=='All'||s.t==fT.value)&&(fN.value=='All'||s.n==fN.value)&&(fW.value=='All'||wc(s.w)==fW.value)&&(fS.value=='All'||s.sp.includes(fS.value))&&(fD.value=='All'||s.id==fD.value));
+const n=sel.length,sp=[...new Set(sel.flatMap(s=>s.sp))];
+k1.textContent=n;k2.textContent=sp.length;
+k3.textContent=n?(sel.reduce((a,s)=>a+s.sp.length,0)/n).toFixed(1):'0';
+k4.textContent=n?sel[n-1].sp.length:'0';
+mk('c1',{type:'bar',data:{labels:sel.map(s=>s.d),datasets:[{data:sel.map(s=>s.sp.length),backgroundColor:ac}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+' species'}}},onClick:(evt,elements)=>{if(elements.length){const picked=sel[elements[0].index];fD.value=picked.id;render();}},scales:{y:ax('Species'),x:{}}}});
+mk('c2',{type:'scatter',data:{datasets:[{data:sel.map(s=>({x:s.h,y:s.sp.length})),backgroundColor:ac,pointRadius:6}]},options:{plugins:{legend:{display:false}},scales:{x:{min:6,max:20,title:{display:true,text:'Start hour'}},y:ax('Species')}}});
+const ds=nz=>({label:nz+' noise',data:sel.filter(s=>s.n==nz).map(s=>({x:s.w,y:s.sp.length})),backgroundColor:nz=='High'?ac2:ac,pointRadius:6});
+mk('c3',{type:'scatter',data:{datasets:[ds('Low'),ds('High')]},options:{plugins:{legend:{position:'bottom'}},scales:{x:{min:0,max:35,title:{display:true,text:'Wind km/h'}},y:ax('Species')}}});
+const fr=sp.map(x=>[x,Math.round(100*sel.filter(s=>s.sp.includes(x)).length/n)]).sort((a,b)=>b[1]-a[1]);
+mk('c4',{type:'bar',data:{labels:fr.map(f=>f[0]),datasets:[{data:fr.map(f=>f[1]),backgroundColor:ac}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{max:100,beginAtZero:true},y:{ticks:{font:{size:10}}}}}});
+grid.innerHTML='<tr><th>Species</th>'+sel.map(s=>'<th>'+s.d+'</th>').join('')+'</tr>'+sp.sort().map(x=>'<tr><td>'+x+'</td>'+sel.map(s=>'<td>'+(s.sp.includes(x)?'<span class="dot">&#9679;</span>':'')+'</td>').join('')+'</tr>').join('');
+list.innerHTML=sp.map(x=>'<span class="tag">'+x+'</span>').join('')||'<span class="note">No sessions match these filters.</span>';
+sg.innerHTML=sp.map(x=>{const i=INFO[x]||['','','Unlisted','No guide entry yet for this species.',x.replace(/ /g,'_')];const key='bird-'+i[4].replace(/[^a-z0-9]/gi,'-');const chosen=fS.value===x;return '<div class="sc '+(chosen?'selected':'')+'" tabindex="0" role="button" aria-pressed="'+chosen+'" data-species="'+x+'" title="Click to filter by '+x+'"><img id="'+key+'" alt="'+x+'" loading="lazy" data-wiki-title="'+i[4]+'" data-bird-name="'+x+'"><span class="bdg">'+i[2]+'</span><b>'+x+'</b><br><i>'+i[0]+'</i><br>'+i[1]+'<br>'+i[3]+'<br><a href="https://en.wikipedia.org/wiki/'+i[4]+'" target="_blank" rel="noopener">Photo source / Wikipedia</a></div>'}).join('');
+loadBirdImages();
+}
+const birdImageCache={},creditCache={};
+function esc(t){return String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function getCredit(file){
+  if(!creditCache[file]){
+    const api='https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=extmetadata&titles='+encodeURIComponent('File:'+file)+'&origin=*';
+    creditCache[file]=fetch(api).then(r=>r.json()).then(data=>{
+      const page=Object.values(data.query.pages)[0];
+      const m=page&&page.imageinfo&&page.imageinfo[0].extmetadata;
+      if(!m)return null;
+      const artist=new DOMParser().parseFromString(m.Artist?m.Artist.value:'','text/html').body.textContent.trim();
+      return {artist:artist||'Unknown author',lic:m.LicenseShortName?m.LicenseShortName.value:'See file page',licUrl:m.LicenseUrl?m.LicenseUrl.value:''};
+    }).catch(()=>null);
+  }
+  return creditCache[file];
+}
+function loadBirdImages(){
+  document.querySelectorAll('#sg img[data-wiki-title]').forEach(img=>{
+    const title=img.dataset.wikiTitle;
+    if(!birdImageCache[title]){
+      const api='https://en.wikipedia.org/w/api.php?action=query&format=json&prop=pageimages&piprop=thumbnail%7Cname&pithumbsize=600&redirects=1&titles='+encodeURIComponent(title)+'&origin=*';
+      birdImageCache[title]=fetch(api).then(r=>r.json()).then(data=>{
+        const page=Object.values(data.query.pages)[0];
+        return page&&page.thumbnail?{src:page.thumbnail.source,file:page.pageimage||''}:null;
+      }).catch(()=>null);
+    }
+    birdImageCache[title].then(info=>{
+      if(!img.isConnected)return;
+      if(!info){img.alt=img.dataset.birdName+' photo unavailable; open Wikipedia for images';img.style.display='none';return;}
+      img.src=info.src;
+      if(!info.file)return;
+      getCredit(info.file).then(c=>{
+        if(!img.isConnected||(img.nextElementSibling&&img.nextElementSibling.classList.contains('cr')))return;
+        const fileUrl='https://commons.wikimedia.org/wiki/File:'+encodeURIComponent(info.file);
+        const cr=document.createElement('div');cr.className='cr';
+        cr.innerHTML=c?'Photo: '+esc(c.artist)+', '+(c.licUrl?'<a href="'+esc(c.licUrl)+'" target="_blank" rel="noopener">'+esc(c.lic)+'</a>':esc(c.lic))+' (<a href="'+fileUrl+'" target="_blank" rel="noopener">Commons</a>)':'Photo: <a href="'+fileUrl+'" target="_blank" rel="noopener">see Commons for credit</a>';
+        img.after(cr);
+      });
+    });
+  });
+}
+const INFO={
+'Redpoll':['Acanthis cabaret','Fringillidae','Introduced','Small streaky finch with a red forehead, often in flocks. In NZ it is the Lesser Redpoll.','Lesser_redpoll'],
+'European Greenfinch':['Chloris chloris','Fringillidae','Introduced','Stocky olive-green finch with yellow wing flashes and a wheezy call.','European_greenfinch'],
+'Eurasian Blackbird':['Turdus merula','Turdidae','Introduced','Males are glossy black with an orange bill, females are brown. Sings at dawn and dusk.','Common_blackbird'],
+'Kelp Gull':['Larus dominicanus','Laridae','Native','Large black-backed gull, known in NZ as karoro or the southern black-backed gull.','Kelp_gull'],
+'Eurasian Skylark':['Alauda arvensis','Alaudidae','Introduced','Streaky ground bird that sings in a long hovering flight over open ground.','Eurasian_skylark'],
+'House Sparrow':['Passer domesticus','Passeridae','Introduced','Brought to NZ in 1859 and common around houses. Males have a black bib.','House_sparrow'],
+'European Starling':['Sturnus vulgaris','Sturnidae','Introduced','Glossy, speckled and noisy, a skilled mimic that feeds on lawns.','Common_starling'],
+'Masked Lapwing':['Vanellus miles','Charadriidae','Native','Large plover with yellow face wattles, also called spur-winged plover. Reached NZ on its own in the 1930s.','Masked_lapwing'],
+'European Goldfinch':['Carduelis carduelis','Fringillidae','Introduced','Red face and gold wing bars with a tinkling call, often feeding on seed heads.','European_goldfinch'],
+'Silvereye':['Zosterops lateralis','Zosteropidae','Native','Small green bird with a white eye ring, known as tauhou. Reached NZ on its own in the 1850s.','Silvereye']};
+[fT,fN,fW,fS,fD].forEach(e=>e.onchange=render);
+document.getElementById('resetFilters').addEventListener('click',()=>{[fT,fN,fW,fS,fD].forEach(e=>e.value='All');render();});
+function chooseSpecies(card){if(!card||card.closest('a'))return;const species=card.dataset.species;if(!species)return;fS.value=(fS.value===species?'All':species);render();}
+sg.addEventListener('click',e=>{if(e.target.closest('a'))return;chooseSpecies(e.target.closest('.sc'));});
+sg.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('sc')){e.preventDefault();chooseSpecies(e.target);}});
+loadData();setInterval(loadData,300000);
+</script></body></html>
