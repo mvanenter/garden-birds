@@ -1,6 +1,6 @@
 # Garden Bird Survey Dashboard
 
-An interactive dashboard exploring bird observations from my back garden in Lincoln, Canterbury, New Zealand.
+An interactive dashboard exploring bird observations from my back garden in Selwyn, Canterbury, New Zealand.
 
 This project uses observations identified during 10-minute Merlin Sound ID sessions to explore bird species richness, detection frequency and potential relationships with environmental conditions. It combines bird identification information, environmental data and interactive visualisations in a lightweight web dashboard.
 
