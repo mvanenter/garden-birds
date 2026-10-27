@@ -254,22 +254,54 @@ button.reset:hover { opacity: 0.88; }
 /* ============================================================
    Tables
    ============================================================ */
-.scroll { overflow-x: auto; }
+.scroll {
+  overflow: auto;                 /* horizontal + vertical */
+  max-height: 360px;              /* scroll once the table grows */
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--card) 40%, transparent);
+}
+
+/* Sticky header row while scrolling vertically */
+.scroll table thead th {
+  position: sticky;
+  top: 0;
+  background: color-mix(in srgb, var(--card) 95%, var(--bg));
+  z-index: 2;
+  box-shadow: 0 1px 0 var(--bd);
+}
+
+/* Sticky first column while scrolling horizontally */
+.scroll table th:first-child,
+.scroll table td:first-child {
+  position: sticky;
+  left: 0;
+  background: color-mix(in srgb, var(--card) 95%, var(--bg));
+  z-index: 1;
+  text-align: left;
+  box-shadow: 1px 0 0 var(--bd);
+}
+
+/* Corner cell (header + first column) sits above both */
+.scroll table thead th:first-child {
+  z-index: 3;
+}
 
 table {
-  border-collapse: collapse;
+  border-collapse: separate;      /* required for sticky to work cleanly */
+  border-spacing: 0;
   font-size: 12px;
   width: 100%;
+  min-width: max-content;
 }
 
 th, td {
-  padding: 4px 7px;
+  padding: 5px 8px;
   text-align: center;
   border-bottom: 1px solid var(--bd);
   white-space: nowrap;
 }
-
-td:first-child, th:first-child { text-align: left; }
 
 .dot { color: var(--ac); font-size: 15px; }
 
