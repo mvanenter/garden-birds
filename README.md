@@ -1,90 +1,77 @@
 # Garden Bird Survey Dashboard
 
-An interactive dashboard exploring bird observations from my back garden in Selwyn, Canterbury, New Zealand.
+An interactive dashboard for exploring 10-minute Merlin Sound ID bird surveys from a back garden in Selwyn, Canterbury, New Zealand.
 
-This project uses observations identified during 10-minute Merlin Sound ID sessions to explore bird species richness, detection frequency and potential relationships with environmental conditions. It combines bird identification information, environmental data and interactive visualisations in a lightweight web dashboard.
-
-**Project status:** Prototype in development.
+This is an improved single-file prototype that builds on the original [garden-birds](https://github.com/mvanenter/garden-birds) project.
 
 ## Features
 
-- **Interactive filters:** Filter observations by time of day, background noise, wind conditions, species and survey date.
-- **Survey summary statistics:** View the number of survey sessions, species recorded, mean species richness and latest session richness.
-- **Data visualisations:** Explore species richness by date, start time and wind speed, alongside species detection frequency.
-- **Species-by-session matrix:** Compare which birds were recorded during each survey.
-- **Bird identification guide:** Browse bird photos, scientific names, taxonomic families, conservation context and descriptions.
-- **Interactive species cards:** Select a bird to filter the dashboard and explore its observations.
-- **Environmental context:** Compare bird observations with recorded weather and background noise conditions.
-- **Incidental observations:** Keep records outside the formal 10-minute counts separate from survey results.
+- Live data loading from a published Google Sheet (with fallback sample data)
+- Interactive filters: time of day, noise, wind, rain, species, session date
+- Summary KPIs: sessions, species count, mean richness, latest richness, total rain
+- Charts: richness by date / start time / wind, detection frequency, rainfall
+- Species-by-session presence matrix
+- Species guide with photos, scientific names, status (native/introduced), short descriptions, and Wikipedia links
+- Click a species card or a date bar to filter the whole dashboard
+- Light / dark theme
+- Incidental observations kept separate from formal counts
 
-## Project objectives
+## How to run
 
-The project aims to:
+1. Place `index.html` and `garden-bg.svg` in the same folder.
+2. Open `index.html` in a modern browser  
+   **or** serve the folder locally, e.g.:
+   ```bash
+   python3 -m http.server 8000
+   ```
+3. An internet connection is needed for Chart.js (CDN), Wikipedia photos, and the live spreadsheet.
 
-- Build a structured dataset from repeated backyard bird surveys.
-- Explore patterns in bird detections and species richness over time.
-- Investigate how recorded weather and background noise may relate to bird observations.
-- Develop practical skills in GIS, data management and interactive data visualisation.
-- Explore opportunities to automate environmental data preparation using FME.
+No build step is required.
 
-## Data collection
+## Data source
 
-Bird observations are collected during 10-minute listening sessions using Merlin Sound ID.
+The dashboard reads a published Google Sheets CSV.  
+To use your own data, edit the `SHEET_CSV_URL` constant near the top of the `<script>` block in `index.html`.
 
-The dataset includes fields such as:
+Expected columns (header names matter):
 
-- Survey session ID and date
-- Start and end times
-- Bird species recorded
-- Temperature and wind speed
-- Weather conditions, cloud cover, rainfall and humidity
-- Background noise and observation notes
+| Column              | Example          | Notes                          |
+|---------------------|------------------|--------------------------------|
+| Session_ID          | S001             | Optional (auto-generated)      |
+| Date                | 20/10 or 20/10/2026 | Required                    |
+| Start_Time          | 9:40 or 9:40 am  | Required                       |
+| End_Time            | 9:50 AM          | Shown under time of day        |
+| Birds_Recorded      | Blackbird, House Sparrow | Required (comma/semicolon separated) |
+| Wind_Kmh            | 22               |                                |
+| Background_Noise    | Low / Medium / High | Filter + table              |
+| Time_of_Day         | Early morning    |                                |
+| Wind_Direction      | N, NNW, SE…      |                                |
+| Weather_Condition   | Sunny, Overcast  | Conditions table               |
+| Cloud_Cover_Pct     | 37               | Conditions table               |
+| Rain_mm             | 0 or 4.1         | Use 0 for dry                  |
+| Rain_Chance_Pct     | 45 or 45%        |                                |
+| Humidity_Pct        | 65               | Conditions table               |
+| Temperature_C       | 16               |                                |
+| Notes               | free text        | Session notes section          |
 
-The current dashboard is a prototype based on the first six survey sessions, covering 20 to 25 October 2026. The dataset and dashboard will be updated as more observations are collected.
+Merlin detections are treated as identification records, not independently verified presence.  
+Incidental sightings (outside the formal 10-minute counts) are listed separately and excluded from richness calculations.
 
-Merlin Sound ID detections are treated as identification records rather than independently verified evidence of every bird's presence. Incidental observations are kept separate from the formal survey counts.
+## Project status
 
-## Technology
+Prototype. The current live sheet contains the first survey sessions (from 20 Oct 2026 onward).  
+The sample is still small — treat patterns as exploratory, not definitive.
 
-- **HTML and CSS:** Dashboard structure, layout and styling.
-- **JavaScript:** Filtering, calculations and interactive behaviour.
-- **Chart.js:** Data visualisations.
-- **Wikipedia:** Bird identification references and photographs retrieved through its API.
-- **FME:** Planned workflow development for data preparation and environmental data integration.
-- **GIS:** Environmental data exploration and spatial analysis opportunities.
+## Planned improvements
 
-## Running the dashboard
+- Sunrise / sunset integration (Open-Meteo)
+- Automated environmental data join (FME or similar)
+- Bird call links
+- More temporal and environmental comparisons
+- Optional GIS layer
 
-1. Download or clone this repository.
-2. Open the HTML dashboard file in a modern web browser.
-3. Use the filters to explore the survey sessions and species records.
+## Credits
 
-An internet connection is required to load Chart.js from its CDN and retrieve bird photographs from Wikipedia.
-
-No build process is required for the current standalone HTML prototype.
-
-## Current limitations
-
-- The dashboard currently contains only six survey sessions.
-- The observations are entered directly into the JavaScript code rather than loaded from an automated data pipeline.
-- Start time is currently used as a proxy for time relative to sunrise.
-- Bird detections may be affected by identification accuracy, background noise, weather and survey conditions.
-- The current sample is too small to support strong conclusions about bird behaviour or environmental relationships.
-- Bird photographs depend on external services being available.
-
-## Future development
-
-Planned improvements include:
-
-- Expanding the survey dataset through repeated observations.
-- Integrating sunrise and sunset information from Open-Meteo.
-- Developing an FME workflow to prepare and combine observation and weather data.
-- Improving the bird identification panel with additional reference information and bird calls.
-- Adding further temporal and environmental comparisons.
-- Exploring GIS-based visualisation of bird observations and their environmental context.
-
-## About
-
-This is a personal learning project exploring backyard biodiversity, environmental data and GIS-related data visualisation in Canterbury, New Zealand.
-
-The project is being developed incrementally as a practical portfolio example of data collection, data preparation, analysis and interactive dashboard design.
+- Bird photos and metadata via Wikipedia / Wikimedia Commons APIs
+- Chart.js for visualisations
+- Original concept and data collection by [mvanenter](https://github.com/mvanenter)
