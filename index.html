@@ -305,6 +305,123 @@ th, td {
 
 .dot { color: var(--ac); font-size: 15px; }
 
+/* Heatmap */
+table.heatmap {
+  border-collapse: separate;
+  border-spacing: 3px;
+  font-size: 12px;
+  width: 100%;
+  min-width: max-content;
+}
+table.heatmap th,
+table.heatmap td {
+  border: 0;
+  padding: 6px 10px;
+  text-align: center;
+  white-space: nowrap;
+}
+table.heatmap th:first-child,
+table.heatmap td:first-child {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: color-mix(in srgb, var(--card) 95%, var(--bg));
+  z-index: 1;
+  font-weight: 500;
+}
+table.heatmap thead th {
+  position: sticky;
+  top: 0;
+  background: color-mix(in srgb, var(--card) 95%, var(--bg));
+  z-index: 2;
+  color: var(--mut);
+  font-weight: 600;
+}
+table.heatmap thead th:first-child { z-index: 3; }
+table.heatmap td.heat-cell {
+  border-radius: 6px;
+  min-width: 52px;
+  font-variant-numeric: tabular-nums;
+  color: var(--tx);
+}
+.heat-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--mut);
+}
+.heat-scale {
+  display: inline-block;
+  height: 10px;
+  width: 120px;
+  border-radius: 99px;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--ac) 8%, var(--card)),
+    color-mix(in srgb, var(--ac) 45%, var(--card)),
+    var(--ac));
+}
+
+/* Heatmap */
+.heatmap-wrap {
+  overflow: auto;
+  max-height: 420px;
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+}
+.heatmap {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+  width: 100%;
+  min-width: max-content;
+}
+.heatmap th, .heatmap td {
+  padding: 6px 8px;
+  text-align: center;
+  border-bottom: 1px solid var(--bd);
+  white-space: nowrap;
+}
+.heatmap th:first-child, .heatmap td:first-child {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: color-mix(in srgb, var(--card) 95%, var(--bg));
+  z-index: 1;
+  box-shadow: 1px 0 0 var(--bd);
+}
+.heatmap thead th {
+  position: sticky;
+  top: 0;
+  background: color-mix(in srgb, var(--card) 95%, var(--bg));
+  z-index: 2;
+  box-shadow: 0 1px 0 var(--bd);
+}
+.heatmap thead th:first-child { z-index: 3; }
+.heatmap .cell {
+  min-width: 72px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  border-radius: 4px;
+}
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--mut);
+  flex-wrap: wrap;
+}
+.heatmap-legend .swatch {
+  display: inline-block;
+  width: 18px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--bd);
+}
+
 /* ============================================================
    Species guide
    ============================================================ */
@@ -516,6 +633,22 @@ th, td {
       <div class="cv"><canvas id="c5" aria-label="Bar chart of rainfall by session"></canvas></div>
       <p class="note" id="rnote"></p>
     </div>
+  </section>
+
+  <!-- Species × time-of-day heatmap -->
+  <section class="card" style="margin-bottom:12px" aria-labelledby="heat-heading">
+    <h2 id="heat-heading">Species activity by time of day</h2>
+    <div class="scroll" id="heatmap-wrap">
+      <table id="heatmap" class="heatmap">
+        <caption class="sr-only">Heatmap of how often each species was detected in each time-of-day bin</caption>
+      </table>
+    </div>
+    <div class="heat-legend" aria-hidden="true">
+      <span>Fewer sessions</span>
+      <span class="heat-scale"></span>
+      <span>More sessions</span>
+    </div>
+    <p class="note">Colour = number of filtered sessions in that time-of-day bin where the species was recorded. Honest to your 10‑minute counts — not continuous all‑day monitoring.</p>
   </section>
 
   <!-- Session conditions table -->
@@ -1143,6 +1276,9 @@ function render() {
     }
   });
 
+  // ---- Species × time-of-day heatmap ----
+  renderHeatmap(sel, allSpecies);
+
   // ---- Species × session matrix ----
   const matrixSpecies = [...new Set(sel.flatMap(s => s.species))].sort();
   let matrixHtml = '<thead><tr><th>Species</th>';
@@ -1165,6 +1301,71 @@ function render() {
 
   // ---- Species guide cards ----
   renderSpeciesGuide(sel, allSpecies);
+}
+
+/**
+ * Species × time-of-day heatmap.
+ * Colour intensity = how many filtered sessions in that time bin recorded the species.
+ */
+function renderHeatmap(sel, allSpecies) {
+  const table = document.getElementById('heatmap');
+  if (!table) return;
+
+  // Time-of-day columns in preferred order (only those present in filtered data)
+  const binsPresent = [...new Set(sel.map(s => s.timeOfDay))];
+  const bins = TOD_ORDER.filter(t => binsPresent.includes(t))
+    .concat(binsPresent.filter(t => !TOD_ORDER.includes(t)));
+
+  if (!allSpecies.length || !bins.length) {
+    table.innerHTML = '<tbody><tr><td class="note">No data for the current filter.</td></tr></tbody>';
+    return;
+  }
+
+  // Count: species → timeOfDay → number of sessions
+  const counts = {};
+  let maxCount = 0;
+  allSpecies.forEach(sp => {
+    counts[sp] = {};
+    bins.forEach(b => {
+      const n = sel.filter(s => s.timeOfDay === b && s.species.includes(sp)).length;
+      counts[sp][b] = n;
+      if (n > maxCount) maxCount = n;
+    });
+  });
+
+  // Sort species by total activity (most active first)
+  const ordered = [...allSpecies].sort((a, b) => {
+    const ta = bins.reduce((s, bin) => s + counts[a][bin], 0);
+    const tb = bins.reduce((s, bin) => s + counts[b][bin], 0);
+    return tb - ta;
+  });
+
+  // Colour helper: 0 → faint, maxCount → full accent
+  function cellStyle(n) {
+    if (n <= 0 || maxCount <= 0) {
+      return 'background:color-mix(in srgb, var(--bd) 35%, var(--card)); color:var(--mut)';
+    }
+    const t = n / maxCount; // 0–1
+    const pct = Math.round(12 + t * 78); // 12% … 90% mix toward accent
+    const text = t > 0.55 ? '#fff' : 'var(--tx)';
+    return `background:color-mix(in srgb, var(--ac) ${pct}%, var(--card)); color:${text}`;
+  }
+
+  let html = '<thead><tr><th>Species</th>';
+  bins.forEach(b => { html += `<th>${esc(b)}</th>`; });
+  html += '</tr></thead><tbody>';
+
+  ordered.forEach(sp => {
+    html += `<tr><td>${esc(sp)}</td>`;
+    bins.forEach(b => {
+      const n = counts[sp][b];
+      const label = n === 0 ? 'none' : `${n} session${n === 1 ? '' : 's'}`;
+      html += `<td class="heat-cell" style="${cellStyle(n)}" title="${esc(sp)} · ${esc(b)}: ${label}">${n || ''}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
 }
 
 function renderSpeciesGuide(sel, allSpecies) {
