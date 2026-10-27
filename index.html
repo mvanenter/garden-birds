@@ -535,19 +535,24 @@ table.heatmap td.heat-cell {
 .site-footer {
   max-width: 1180px;
   margin: 20px auto 0;
-  padding: 16px 20px;
+  padding: 18px 20px;
   text-align: center;
-  font-size: 0.85rem;
-  color: var(--mut);
-  background: color-mix(in srgb, var(--card) 65%, transparent);
-  border: 1px solid color-mix(in srgb, var(--bd) 70%, transparent);
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--bd);
   border-radius: 16px;
-  line-height: 1.6;
+  line-height: 1.7;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
 .site-footer p {
   margin: 4px 0;
-} 
+}
+
+.site-footer p:first-child {
+  font-weight: 600;
+}
 </style>
 </head>
 <body>
