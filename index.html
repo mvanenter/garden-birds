@@ -558,7 +558,6 @@ table.heatmap td.heat-cell {
         <option>Low</option>
         <option>Medium</option>
         <option>High</option>
-        <option>Not recorded</option>
       </select>
     </label>
     <label>Wind
@@ -904,11 +903,8 @@ function toSessions(csvText) {
   if (!rows.length) return [];
 
   const header = rows.shift().map(h => h.trim());
-  // Match column names even if the spreadsheet uses spaces, underscores or different capitalisation.
-  const normaliseHeader = value => value.toLowerCase().replace(/[\s_-]+/g, '');
   const get = (row, name) => {
-    const wanted = normaliseHeader(name);
-    const idx = header.findIndex(h => normaliseHeader(h) === wanted);
+    const idx = header.indexOf(name);
     return idx < 0 ? '' : (row[idx] || '').trim();
   };
 
@@ -941,30 +937,40 @@ function toSessions(csvText) {
       startHour = hh + (+tm[2]) / 60;
     }
 
-    // Species list with alias normalisation + dedupe
+    // Species list with robust normalisation. Google Sheets may publish
+    // in-cell line breaks as newlines or HTML <br> tags.
+    const normaliseSpeciesName = value => {
+      const clean = String(value || '')
+        .replace(/<br\s*\/?\s*>/gi, '\n')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;|&#160;/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!clean) return '';
+      const aliasKey = Object.keys(ALIAS).find(
+        key => key.toLowerCase() === clean.toLowerCase()
+      );
+      if (aliasKey) return ALIAS[aliasKey];
+      const knownName = Object.keys(SPECIES_INFO).find(
+        key => key.toLowerCase() === clean.toLowerCase()
+      );
+      return knownName || clean;
+    };
+
     let species = birdsRaw
-      .split(/[,\n;]+/)
-      .map(s => s.trim())
-      .filter(Boolean)
-      .map(s => ALIAS[s] || s);
+      .replace(/<br\s*\/?\s*>/gi, '\n')
+      .split(/[;,\n]+/)
+      .map(normaliseSpeciesName)
+      .filter(Boolean);
 
     if (species.length === 1 && /^(none|no birds)$/i.test(species[0])) {
       species = [];
     }
     species = [...new Set(species)];
 
-    // Noise: preserve Low, Medium and High, regardless of capitalisation or extra wording.
-    // Do not silently classify blank or unexpected values as Low.
-    const noiseRaw = get(row, 'Background_Noise');
-    const noiseText = noiseRaw.trim().toLowerCase();
-    let noise = 'Not recorded';
-    if (/\bhigh\b/i.test(noiseText)) {
-      noise = 'High';
-    } else if (/\bmedium\b/i.test(noiseText)) {
-      noise = 'Medium';
-    } else if (/\blow\b/i.test(noiseText)) {
-      noise = 'Low';
-    }
+    // Noise: keep original value, but also provide a simple High/Low bucket for filtering
+    const noiseRaw = get(row, 'Background_Noise') || 'Low';
+    const noise = /high/i.test(noiseRaw) ? 'High' : (/medium/i.test(noiseRaw) ? 'Medium' : 'Low');
 
     const session = {
       id: get(row, 'Session_ID') || `S${String(idx + 1).padStart(3, '0')}`,
@@ -1028,7 +1034,7 @@ async function loadData() {
     sessions = parsed;
     note.textContent = `Live from spreadsheet · last loaded ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · auto-refreshes every 5 min`;
   } catch (err) {
-    note.textContent = 'Could not read the spreadsheet – showing last known / sample data.';
+    note.textContent = 'Could not load the live spreadsheet (check its published CSV link and sharing settings). Showing the available sample/last-loaded data.';
     // keep existing sessions (or fall back to sample)
     if (!sessions.length) sessions = [...SAMPLE_SESSIONS];
   }
@@ -1106,7 +1112,10 @@ function getFiltered() {
     if (fWd.value !== 'All' && (s.windDir || 'Not recorded') !== fWd.value) return false;
     if (fRn.value !== 'All' && rainClass(s) !== fRn.value) return false;
     if (fCh.value !== 'All' && chanceClass(s) !== fCh.value) return false;
-    if (fS.value  !== 'All' && !s.species.includes(fS.value)) return false;
+    // Compare canonical names case-insensitively to tolerate spreadsheet export differences.
+    if (fS.value !== 'All' && !s.species.some(
+      name => name.trim().toLocaleLowerCase() === fS.value.trim().toLocaleLowerCase()
+    )) return false;
     if (fD.value  !== 'All' && s.id !== fD.value) return false;
     return true;
   });
