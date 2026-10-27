@@ -1,8 +1,3 @@
-<!--
-  Garden Bird Survey Dashboard
-  Copyright (c) 2026 Melanie van Enter.
-  All rights reserved.
--->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -529,30 +524,6 @@ table.heatmap td.heat-cell {
   white-space: nowrap;
   border: 0;
 }
-/* ============================================================
-   Copyright footer
-   ============================================================ */
-.site-footer {
-  max-width: 1180px;
-  margin: 20px auto 0;
-  padding: 18px 20px;
-  text-align: center;
-  font-size: 0.9rem;
-  color: var(--text);
-  background: var(--card);
-  border: 1px solid var(--bd);
-  border-radius: 16px;
-  line-height: 1.7;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-}
-
-.site-footer p {
-  margin: 4px 0;
-}
-
-.site-footer p:first-child {
-  font-weight: 600;
-}
 </style>
 </head>
 <body>
@@ -587,6 +558,7 @@ table.heatmap td.heat-cell {
         <option>Low</option>
         <option>Medium</option>
         <option>High</option>
+        <option>Not recorded</option>
       </select>
     </label>
     <label>Wind
@@ -932,8 +904,11 @@ function toSessions(csvText) {
   if (!rows.length) return [];
 
   const header = rows.shift().map(h => h.trim());
+  // Match column names even if the spreadsheet uses spaces, underscores or different capitalisation.
+  const normaliseHeader = value => value.toLowerCase().replace(/[\s_-]+/g, '');
   const get = (row, name) => {
-    const idx = header.indexOf(name);
+    const wanted = normaliseHeader(name);
+    const idx = header.findIndex(h => normaliseHeader(h) === wanted);
     return idx < 0 ? '' : (row[idx] || '').trim();
   };
 
@@ -978,9 +953,18 @@ function toSessions(csvText) {
     }
     species = [...new Set(species)];
 
-    // Noise: keep original value, but also provide a simple High/Low bucket for filtering
-    const noiseRaw = get(row, 'Background_Noise') || 'Low';
-    const noise = /high/i.test(noiseRaw) ? 'High' : (/medium/i.test(noiseRaw) ? 'Medium' : 'Low');
+    // Noise: preserve Low, Medium and High, regardless of capitalisation or extra wording.
+    // Do not silently classify blank or unexpected values as Low.
+    const noiseRaw = get(row, 'Background_Noise');
+    const noiseText = noiseRaw.trim().toLowerCase();
+    let noise = 'Not recorded';
+    if (/\bhigh\b/i.test(noiseText)) {
+      noise = 'High';
+    } else if (/\bmedium\b/i.test(noiseText)) {
+      noise = 'Medium';
+    } else if (/\blow\b/i.test(noiseText)) {
+      noise = 'Low';
+    }
 
     const session = {
       id: get(row, 'Session_ID') || `S${String(idx + 1).padStart(3, '0')}`,
@@ -1590,15 +1574,6 @@ setTheme(prefersDark ? 'dark' : 'light', true);
 
 loadData();
 setInterval(loadData, 5 * 60 * 1000); // refresh every 5 minutes
-</script> 
-<footer class="site-footer">
-  <p>
-    &copy; 2026 Melanie van Enter.
-    All rights reserved.
-  </p>
-  <p>
-    Garden Bird Survey Dashboard
-  </p>
-</footer> 
+</script>
 </body>
 </html>
