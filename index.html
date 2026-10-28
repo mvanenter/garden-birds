@@ -1461,179 +1461,263 @@ function renderSpeciesGuide(sel, allSpecies) {
 
 
 /* ============================================================
-   10. Bird images + attribution (Wikipedia / Commons)
+   10. Bird images + attribution
+   Prefer local files in birds/ (reliable). Fall back to Wikipedia
+   API with batching + 503 retry. Wikipedia PAGE links always stay.
    ============================================================ */
 
 const birdImageCache = {};
 const creditCache = {};
+const IMG_STORE_KEY = 'garden-birds-img-v2';
 
 /**
- * Fetch JSON with one retry for temporary network/API failures.
+ * Local photo paths to try for a wiki title.
+ * Accepts common upload variants (case / European vs Eurasian skylark).
  */
-async function fetchJsonWithRetry(url, attempts = 2) {
-  let lastError;
+function localBirdPaths(title) {
+  const variants = new Set([title]);
 
-  for (let attempt = 0; attempt < attempts; attempt++) {
-    try {
-      const response = await fetch(url);
+  variants.add(title.toLowerCase());
+  // Capitalise each segment: Common_Blackbird
+  variants.add(title.replace(/_([a-z])/g, (_, c) => '_' + c.toUpperCase()));
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      lastError = error;
-
-      if (attempt < attempts - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-    }
+  if (/skylark/i.test(title)) {
+    ['Eurasian_skylark', 'European_skylark', 'European_Skylark', 'Eurasian_Skylark']
+      .forEach(v => variants.add(v));
+  }
+  if (/blackbird/i.test(title)) {
+    ['Common_blackbird', 'Common_Blackbird'].forEach(v => variants.add(v));
   }
 
-  throw lastError;
+  const paths = [];
+  for (const v of variants) {
+    paths.push(
+      'birds/' + v + '.jpg',
+      'birds/' + v + '.jpeg',
+      'birds/' + v + '.png',
+      'birds/' + v + '.webp'
+    );
+  }
+  return paths;
 }
 
-/**
- * Retrieve photo attribution from Wikimedia Commons.
- * Failed requests are not retained in the cache.
- */
+function loadImgStore() {
+  try { return JSON.parse(sessionStorage.getItem(IMG_STORE_KEY) || '{}'); }
+  catch { return {}; }
+}
+function saveImgStore(store) {
+  try { sessionStorage.setItem(IMG_STORE_KEY, JSON.stringify(store)); }
+  catch { /* ignore */ }
+}
+
+/** Probe whether a local image exists */
+function probeLocalImage(title) {
+  return new Promise(resolve => {
+    const paths = localBirdPaths(title);
+    let i = 0;
+    function tryNext() {
+      if (i >= paths.length) { resolve(null); return; }
+      const path = paths[i++];
+      const test = new Image();
+      test.onload = () => resolve({ src: path, file: '', local: true });
+      test.onerror = tryNext;
+      test.src = path;
+    }
+    tryNext();
+  });
+}
+
+/** Fetch JSON; retry on 503/429 using Retry-After when present */
+async function fetchJsonRetry(url, attempts = 4) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url);
+      if (res.status === 503 || res.status === 429) {
+        const wait = Number(res.headers.get('Retry-After')) || (2 + i * 3);
+        await new Promise(r => setTimeout(r, wait * 1000));
+        continue;
+      }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    } catch (e) {
+      lastErr = e;
+      await new Promise(r => setTimeout(r, (1 + i) * 1500));
+    }
+  }
+  throw lastErr || new Error('fetch failed');
+}
+
 function getCredit(file) {
+  if (!file) return Promise.resolve(null);
   if (!creditCache[file]) {
     const api = 'https://commons.wikimedia.org/w/api.php'
       + '?action=query&format=json&prop=imageinfo&iiprop=extmetadata'
       + '&titles=' + encodeURIComponent('File:' + file)
       + '&origin=*';
-
-    const request = fetchJsonWithRetry(api)
+    creditCache[file] = fetchJsonRetry(api)
       .then(data => {
         const page = Object.values(data.query?.pages || {})[0];
         const m = page?.imageinfo?.[0]?.extmetadata;
-
         if (!m) return null;
-
         const artist = new DOMParser()
-          .parseFromString(
-            m.Artist ? m.Artist.value : '',
-            'text/html'
-          )
+          .parseFromString(m.Artist ? m.Artist.value : '', 'text/html')
           .body.textContent.trim();
-
         return {
           artist: artist || 'Unknown author',
-          lic: m.LicenseShortName
-            ? m.LicenseShortName.value
-            : 'See file page',
+          lic: m.LicenseShortName ? m.LicenseShortName.value : 'See file page',
           licUrl: m.LicenseUrl ? m.LicenseUrl.value : ''
         };
       })
-      .catch(error => {
-        console.warn('Could not load photo credit:', file, error);
-
-        if (creditCache[file] === request) {
-          delete creditCache[file];
-        }
-
-        return null;
-      });
-
-    creditCache[file] = request;
+      .catch(() => null);
   }
-
   return creditCache[file];
 }
 
-/**
- * Retrieve a bird thumbnail from Wikipedia.
- * Successful results are cached; failed requests can be retried.
- */
-function getBirdImage(title) {
-  if (birdImageCache[title]) {
-    return birdImageCache[title];
+function applyBirdImage(img, info) {
+  if (!img.isConnected) return;
+  const birdName = img.dataset.birdName || 'Bird';
+
+  if (!info || !info.src) {
+    img.alt = birdName + ' photo unavailable';
+    img.removeAttribute('src');
+    img.style.display = 'block';
+    img.style.background = 'var(--bg)';
+    return;
   }
 
-  const api = 'https://en.wikipedia.org/w/api.php'
-    + '?action=query&format=json&prop=pageimages'
-    + '&piprop=thumbnail|name&pithumbsize=600&redirects=1'
-    + '&titles=' + encodeURIComponent(title)
-    + '&origin=*';
+  img.style.display = 'block';
+  img.alt = birdName;
+  img.onerror = () => {
+    img.onerror = null;
+    img.removeAttribute('src');
+    img.alt = birdName + ' photo could not be loaded';
+  };
+  img.src = info.src;
 
-  const request = fetchJsonWithRetry(api)
-    .then(data => {
-      const page = Object.values(data.query?.pages || {})[0];
+  // Credit line: local files get a short note; remote get Commons credit
+  if (img.nextElementSibling?.classList.contains('cr')) return;
 
-      return page?.thumbnail
-        ? {
-            src: page.thumbnail.source,
-            file: page.pageimage || ''
-          }
-        : null;
-    })
-    .catch(error => {
-      console.warn('Could not load bird photo:', title, error);
+  if (info.local) {
+    const cr = document.createElement('div');
+    cr.className = 'cr';
+    cr.textContent = 'Photo: local copy (see Wikipedia for source)';
+    img.after(cr);
+    return;
+  }
 
-      // Do not cache temporary failures.
-      if (birdImageCache[title] === request) {
-        delete birdImageCache[title];
-      }
-
-      return null;
-    });
-
-  birdImageCache[title] = request;
-  return request;
+  if (!info.file) return;
+  getCredit(info.file).then(c => {
+    if (!img.isConnected) return;
+    if (img.nextElementSibling?.classList.contains('cr')) return;
+    const fileUrl = 'https://commons.wikimedia.org/wiki/File:' + encodeURIComponent(info.file);
+    const cr = document.createElement('div');
+    cr.className = 'cr';
+    cr.innerHTML = c
+      ? `Photo: ${esc(c.artist)}, ${c.licUrl
+          ? `<a href="${esc(c.licUrl)}" target="_blank" rel="noopener">${esc(c.lic)}</a>`
+          : esc(c.lic)} (<a href="${fileUrl}" target="_blank" rel="noopener">Commons</a>)`
+      : `Photo: <a href="${fileUrl}" target="_blank" rel="noopener">see Commons for credit</a>`;
+    img.after(cr);
+  });
 }
 
-function loadBirdImages() {
-  document.querySelectorAll('#sg img[data-wiki-title]')
-    .forEach(img => {
-      const title = img.dataset.wikiTitle;
-      const birdName = img.dataset.birdName;
+/**
+ * Load images for all species cards:
+ * 1) local birds/ folder
+ * 2) sessionStorage cache of successful Wikipedia fetches
+ * 3) batched Wikipedia API (with 503 retry)
+ * Wikipedia PAGE links on cards are unchanged.
+ */
+async function loadBirdImages() {
+  const imgs = [...document.querySelectorAll('#sg img[data-wiki-title]')];
+  if (!imgs.length) return;
 
-      getBirdImage(title).then(info => {
-        if (!img.isConnected) return;
+  const store = loadImgStore();
+  const needApi = [];
 
-        if (!info) {
-          img.alt = birdName + ' photo unavailable';
-          img.style.display = 'none';
-          return;
-        }
+  for (const img of imgs) {
+    const title = img.dataset.wikiTitle;
 
-        img.style.display = 'block';
-        img.alt = birdName;
-        img.onerror = () => {
-          img.onerror = null;
-          img.style.display = 'none';
-          img.alt = birdName + ' photo could not be loaded';
-          console.warn('Bird thumbnail failed to load:', info.src);
-        };
+    if (birdImageCache[title]) {
+      birdImageCache[title].then(info => applyBirdImage(img, info));
+      continue;
+    }
 
-        img.src = info.src;
+    // Local file?
+    const local = await probeLocalImage(title);
+    if (local) {
+      birdImageCache[title] = Promise.resolve(local);
+      applyBirdImage(img, local);
+      continue;
+    }
 
-        if (!info.file) return;
+    // Session cache from earlier successful API load?
+    if (store[title]?.src) {
+      birdImageCache[title] = Promise.resolve(store[title]);
+      applyBirdImage(img, store[title]);
+      continue;
+    }
 
-        getCredit(info.file).then(c => {
-          if (!img.isConnected) return;
-          if (img.nextElementSibling?.classList.contains('cr')) return;
+    needApi.push(title);
+  }
 
-          const fileUrl = 'https://commons.wikimedia.org/wiki/File:'
-            + encodeURIComponent(info.file);
+  const unique = [...new Set(needApi)];
+  if (!unique.length) return;
 
-          const cr = document.createElement('div');
-          cr.className = 'cr';
+  // Batch Wikipedia requests (fewer calls → fewer 503s)
+  const chunkSize = 5;
+  for (let i = 0; i < unique.length; i += chunkSize) {
+    const chunk = unique.slice(i, i + chunkSize);
+    const api = 'https://en.wikipedia.org/w/api.php'
+      + '?action=query&format=json&prop=pageimages'
+      + '&piprop=thumbnail|name&pithumbsize=600&redirects=1'
+      + '&titles=' + chunk.map(encodeURIComponent).join('|')
+      + '&origin=*';
 
-          cr.innerHTML = c
-            ? `Photo: ${esc(c.artist)}, ${
-                c.licUrl
-                  ? `<a href="${esc(c.licUrl)}" target="_blank" rel="noopener">${esc(c.lic)}</a>`
-                  : esc(c.lic)
-              } (<a href="${fileUrl}" target="_blank" rel="noopener">Commons</a>)`
-            : `Photo: <a href="${fileUrl}" target="_blank" rel="noopener">see Commons for credit</a>`;
+    let data = null;
+    try {
+      data = await fetchJsonRetry(api);
+    } catch (e) {
+      console.warn('Wikipedia image batch failed:', e);
+      chunk.forEach(t => { birdImageCache[t] = Promise.resolve(null); });
+      continue;
+    }
 
-          img.after(cr);
-        });
-      });
+    const pages = data?.query?.pages || {};
+    const redirects = {};
+    (data?.query?.redirects || []).forEach(r => { redirects[r.from] = r.to; });
+    const normalized = {};
+    (data?.query?.normalized || []).forEach(n => { normalized[n.from] = n.to; });
+
+    const byTitle = {};
+    Object.values(pages).forEach(page => {
+      if (!page || page.missing != null) return;
+      byTitle[page.title] = page.thumbnail
+        ? { src: page.thumbnail.source, file: page.pageimage || '', local: false }
+        : null;
     });
+
+    chunk.forEach(title => {
+      const resolved = redirects[normalized[title] || title] || normalized[title] || title;
+      const info = byTitle[resolved] || byTitle[title] || null;
+      birdImageCache[title] = Promise.resolve(info);
+      if (info) store[title] = info;
+    });
+
+    if (i + chunkSize < unique.length) {
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
+
+  saveImgStore(store);
+
+  imgs.forEach(img => {
+    const title = img.dataset.wikiTitle;
+    if (birdImageCache[title]) {
+      birdImageCache[title].then(info => applyBirdImage(img, info));
+    }
+  });
 }
 
 
