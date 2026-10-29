@@ -1,6 +1,6 @@
 # Garden Bird Survey Dashboard
 
-An interactive dashboard for exploring 10-minute Merlin Sound ID bird surveys from a back garden in Selwyn, Canterbury, New Zealand.
+An interactive dashboard for exploring 10-minute Merlin Sound ID bird surveys from a back garden in Selwyn, Canterbury, New Zealand. Please note Merlin Sound ID records what it detects acoustically, not necessarily every bird physically present in the garden. Background noise and detection accuracy can affect the results
 
 This is an improved single-file prototype that builds on the original [garden-birds](https://github.com/mvanenter/garden-birds) project.
 
