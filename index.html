@@ -525,6 +525,24 @@ table.heatmap td.heat-cell {
   border: 0;
 }
 
+  /* ============================================================
+   Poster CSS
+   ============================================================ */
+  .poster-link {
+  display: inline-block;
+  margin: 0 0 14px;
+  padding: 7px 14px;
+  border-radius: 99px;
+  border: 1px solid var(--ac);
+  color: var(--ac);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  background: color-mix(in srgb, var(--card) 70%, transparent);
+}
+.poster-link:hover { background: var(--ac); color: #fff; }
+:root[data-theme="dark"] .poster-link:hover { color: #0b1a12; }
+
 /* ============================================================
    Copyright CSS
    ============================================================ */
@@ -545,17 +563,18 @@ table.heatmap td.heat-cell {
 <body>
 <div class="shell">
 
-  <!-- Header -->
-  <header class="hd">
-    <div>
-      <h1>Garden Bird Survey</h1>
-      <p class="sub">10-minute Merlin Sound ID counts · back garden, Selwyn, Canterbury · from 20 Oct 2026</p>
-    </div>
-    <div class="tg" role="group" aria-label="Colour theme">
-      <button id="tl" type="button" aria-pressed="true">Light</button>
-      <button id="td" type="button" aria-pressed="false">Dark</button>
-    </div>
-  </header>
+<!-- Header -->
+<header class="hd">
+  <div>
+    <h1>Garden Bird Survey</h1>
+    <p class="sub">10-minute Merlin Sound ID counts · back garden, Selwyn, Canterbury · from 20 Oct 2026</p>
+    <a class="poster-link" href="poster.html" target="_blank" rel="noopener">View the garden bird sound poster ↗</a>
+  </div>
+  <div class="tg" role="group" aria-label="Colour theme">
+    <button id="tl" type="button" aria-pressed="true">Light</button>
+    <button id="td" type="button" aria-pressed="false">Dark</button>
+  </div>
+</header>
 
   <!-- Filters -->
   <section class="filters" aria-label="Filters">
@@ -732,8 +751,9 @@ table.heatmap td.heat-cell {
 
  <p class="note">Start hour is the time each count began (24-hour clock).
 Merlin Sound ID detections are treated as identification records, not independently verified presence.</p>
-  <a href="poster.html" target="_blank" rel="noopener">Garden bird sound poster</a>
-
+<p class="note">Start hour is the time each count began (24-hour clock).
+Merlin Sound ID detections are treated as identification records, not independently verified presence.</p>
+  
 <footer class="copyright">
   © 2026 Melanie van Enter · Garden Bird Survey Dashboard
   <br>
