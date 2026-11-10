@@ -17,6 +17,8 @@ An interactive dashboard for a 30-day garden bird survey in Selwyn, Canterbury, 
 - **Species guide:** photo cards with scientific name, family and NZ status. Click a card to filter the whole dashboard to that species
 - **Filters:** time of day, noise, wind, wind direction, rain, rain chance, species and session date
 - **Light and dark themes**, and a layout that works on phones
+
+  
 There is also a [garden bird sound poster](poster.html) that goes with the survey.
  
 ## Method
