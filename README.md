@@ -19,7 +19,7 @@ An interactive dashboard for a 30-day garden bird survey in Selwyn, Canterbury, 
 - **Light and dark themes**, and a layout that works on phones
 
   
-There is also a [garden bird sound poster](poster.html) that goes with the survey.
+There is also a [garden bird sound poster]([poster.html](https://mvanenter.github.io/garden-birds/poster.html)) that goes with the survey.
  
 ## Method
  
