@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Interactive garden bird survey dashboard using Merlin Sound ID observations from Selwyn, Canterbury, New Zealand.">
+<title>Garden Bird Survey Dashboard</title>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-2H637H0RCC"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-2H637H0RCC');</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#fbf9f3;--side:#f6f4ec;--card:#fff;--tx:#1d2b22;--mut:#667269;--ac:#2f6b45;--deep:#1f4d36;--soft:#e6eedd;--ac2:#d98a2b;--bd:#e7e4d8;--sh:0 2px 10px rgba(40,60,40,.06);color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#121815;--side:#171f1b;--card:#1c2621;--tx:#e8ede9;--mut:#9aa69e;--ac:#5cc79a;--deep:#8fdcb9;--soft:#233229;--ac2:#f0a94a;--bd:#2c3932;--sh:none;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#121815;--side:#171f1b;--card:#1c2621;--tx:#e8ede9;--mut:#9aa69e;--ac:#5cc79a;--deep:#8fdcb9;--soft:#233229;--ac2:#f0a94a;--bd:#2c3932;--sh:none;color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+h1,h2,.brand{font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif}
+.app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+.side{background:var(--side);border-right:1px solid var(--bd);padding:24px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow:auto}
+.logo{width:64px;height:64px;border-radius:50%;background:var(--deep);margin:0 auto 10px;display:grid;place-items:center;font-size:30px}
+.brand{text-align:center;font-size:24px;font-weight:600;color:var(--deep);line-height:1.15;margin:0 0 18px}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav a{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:10px;color:var(--tx);text-decoration:none;font-size:14px}
+.nav a:hover,.nav a.on{background:var(--soft)}
+.sidecard{margin-top:auto;border:1px solid var(--bd);background:var(--card);border-radius:12px;padding:12px;font-size:12px;color:var(--mut)}
+.sidecard b{color:var(--tx);display:block;margin-bottom:4px}
+.poster-link{display:block;margin-top:10px;text-align:center;padding:8px;border-radius:99px;border:1px solid var(--ac);color:var(--ac);font-size:12px;font-weight:600;text-decoration:none}
+.poster-link:hover{background:var(--ac);color:#fff}
+main{padding:26px 28px;min-width:0;max-width:1200px}
+.top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;margin-bottom:18px}
+h1{font-size:34px;margin:0;color:var(--deep);font-weight:600}
+.sub{color:var(--mut);margin:2px 0 0;font-size:14px}
+.tg{display:flex;background:var(--card);border:1px solid var(--bd);border-radius:99px;padding:3px}
+.tg button{border:0;background:none;color:var(--mut);font:inherit;font-size:12px;padding:6px 14px;border-radius:99px;cursor:pointer}
+.tg button[aria-pressed=true]{background:var(--ac);color:#fff}
+:root[data-theme=dark] .tg button[aria-pressed=true]{color:#0b1a12}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px;box-shadow:var(--sh)}
+.card h2{font-size:17px;margin:0 0 10px;color:var(--deep);font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:16px}
+.kpi{display:flex;gap:12px;align-items:center}
+.ic{width:52px;height:52px;border-radius:12px;background:var(--soft);display:grid;place-items:center;font-size:24px;flex:none}
+.kpi b{display:block;font-size:30px;line-height:1.1;color:var(--tx);font-family:Georgia,serif}
+.kpi span{font-size:13px;color:var(--mut)}
+.row{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:14px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;margin-bottom:16px}
+.cv{position:relative;height:230px}
+.sec{margin-bottom:16px;scroll-margin-top:16px}
+details.card{margin-bottom:16px;padding:12px 16px}
+summary{cursor:pointer;font-weight:600;color:var(--deep)}
+.filters{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;align-items:end}
+.filters label{font-size:12px;color:var(--mut);display:flex;flex-direction:column;gap:3px}
+select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:6px 8px;font:inherit;min-width:110px}
+.reset{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:8px 12px;cursor:pointer;font:inherit;font-size:12px}
+:root[data-theme=dark] .reset{color:#0b1a12}
+.note{font-size:12px;color:var(--mut);margin:10px 0 0}
+.top5{display:flex;flex-direction:column;gap:10px}
+.tr{display:grid;grid-template-columns:130px 1fr 34px 38px;gap:8px;align-items:center;font-size:13px}
+.bar{height:20px;background:var(--soft);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ac);border-radius:4px}
+.tr em{font-style:normal;color:var(--mut);text-align:right}
+.tr b{text-align:right}
+.scroll{overflow:auto;max-height:380px;border:1px solid var(--bd);border-radius:10px}
+table{border-collapse:separate;border-spacing:0;font-size:12px;width:100%;min-width:max-content}
+th,td{padding:6px 9px;text-align:center;border-bottom:1px solid var(--bd);white-space:nowrap}
+thead th{position:sticky;top:0;background:var(--card);z-index:2;color:var(--mut)}
+th:first-child,td:first-child{position:sticky;left:0;background:var(--card);text-align:left;z-index:1}
+thead th:first-child{z-index:3}
+.dot{color:var(--ac)}
+.heat-cell{min-width:56px;font-variant-numeric:tabular-nums}
+.hm{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:14px;align-items:start}
+.dyk{background:var(--soft);border-radius:12px;padding:14px;font-size:14px}
+.dyk b{display:block;margin-bottom:6px;color:var(--deep)}
+.sg{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.sc{border:1px solid var(--bd);border-radius:12px;padding:10px;font-size:13px;cursor:pointer;background:var(--card);transition:transform .15s,border-color .15s}
+.sc:hover{transform:translateY(-2px);border-color:var(--ac)}
+.sc.selected{outline:2px solid var(--ac)}
+.sc img{display:block;width:100%;height:150px;object-fit:cover;border-radius:8px;margin-bottom:8px;background:var(--soft)}
+.sc i{color:var(--mut)}.sc a{color:var(--ac)}
+.bdg{float:right;font-size:11px;border-radius:99px;padding:1px 8px;border:1px solid var(--bd)}
+.cr{font-size:10.5px;color:var(--mut);margin:-3px 0 7px;line-height:1.3}.cr a{color:var(--mut)}
+.tag{display:inline-block;background:var(--soft);border-radius:99px;padding:2px 10px;margin:2px;font-size:12px}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+.copyright{margin-top:22px;padding-top:14px;border-top:1px solid var(--bd);color:var(--mut);font-size:12px;text-align:center;line-height:1.6}
+@media(max-width:900px){.app{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px;padding:12px}.logo,.brand{display:none}.nav{flex-direction:row;flex-wrap:wrap}.sidecard,.poster-link{display:none}.row,.hm{grid-template-columns:1fr}main{padding:18px 14px}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <div class="logo" aria-hidden="true">🕊️</div>
+  <p class="brand">Garden Bird Survey</p>
+  <nav class="nav" aria-label="Sections">
+    <a href="#overview" class="on">📊 Overview</a>
+    <a href="#sessions">🐦 Sessions</a>
+    <a href="#species">🍃 Species</a>
+    <a href="#conditions">🌦️ Conditions</a>
+    <a href="#notes">📝 Notes</a>
+  </nav>
+  <div class="sidecard"><b>Every observation counts.</b>10-minute Merlin Sound ID counts from the back garden.
+    <a class="poster-link" href="poster.html" target="_blank" rel="noopener">Garden bird sound poster ↗</a></div>
+</aside>
+
+<main id="overview">
+  <header class="top">
+    <div>
+      <h1>Welcome back!</h1>
+      <p class="sub">Here's what's happening in your garden bird survey. Back garden, Selwyn, Canterbury, from 20 Oct 2026.</p>
+    </div>
+    <div class="tg" role="group" aria-label="Colour theme">
+      <button id="tl" type="button" aria-pressed="true">Light</button>
+      <button id="td" type="button" aria-pressed="false">Dark</button>
+    </div>
+  </header>
+
+  <details class="card">
+    <summary>Filters</summary>
+    <div class="filters">
+      <label>Time of day<select id="fT"><option>All</option></select></label>
+      <label>Noise<select id="fN"><option>All</option><option>Low</option><option>Medium</option><option>High</option></select></label>
+      <label>Wind<select id="fW"><option>All</option><option>Calm</option><option>Moderate</option><option>Windy</option></select></label>
+      <label>Wind direction<select id="fWd"><option>All</option></select></label>
+      <label>Rain<select id="fRn"><option>All</option><option value="Dry">Dry (0 mm)</option><option value="Light">Light (up to 20 mm)</option><option value="Medium">Medium (21-49 mm)</option><option value="Heavy">Heavy (50 mm+)</option><option>Not recorded</option></select></label>
+      <label>Rain chance<select id="fCh"><option>All</option><option value="Low">Low (0-20%)</option><option value="Medium">Medium (21-60%)</option><option value="High">High (61%+)</option><option>Not recorded</option></select></label>
+      <label>Species<select id="fS"><option>All</option></select></label>
+      <label>Session date<select id="fD"><option>All</option></select></label>
+      <button class="reset" id="resetFilters" type="button">Reset filters</button>
+    </div>
+  </details>
+  <p class="note" id="srcnote" role="status" aria-live="polite" style="margin:-6px 0 14px"></p>
+
+  <section class="kpis" aria-label="Summary statistics">
+    <div class="card kpi"><div class="ic">🐦</div><div><span>Sessions</span><b id="k1">-</b></div></div>
+    <div class="card kpi"><div class="ic">🍃</div><div><span>Species</span><b id="k2">-</b></div></div>
+    <div class="card kpi"><div class="ic">📈</div><div><span>Mean richness</span><b id="k3">-</b></div></div>
+    <div class="card kpi"><div class="ic">⏱️</div><div><span>Latest richness</span><b id="k4">-</b></div></div>
+    <div class="card kpi"><div class="ic">🌧️</div><div><span>Rain (mm)</span><b id="k5">-</b></div></div>
+  </section>
+
+  <section class="row sec" id="sessions">
+    <div class="card"><h2>Survey activity: richness by date</h2>
+      <div class="cv"><canvas id="c1" aria-label="Species richness by date"></canvas></div>
+      <p class="note">Click a point to focus on one session.</p></div>
+    <div class="card"><h2>Top species observed</h2>
+      <div class="top5" id="top5"></div>
+      <p class="note">Share of filtered sessions where each species was detected.</p></div>
+  </section>
+
+  <section class="card sec" aria-labelledby="hh">
+    <h2 id="hh">Species observation heatmap</h2>
+    <p class="note" style="margin:-6px 0 10px">Number of sessions each species was recorded in, by time of day.</p>
+    <div class="hm">
+      <div class="scroll"><table id="heatmap"><caption class="sr-only">Species by time of day</caption></table></div>
+      <div class="dyk"><b>🍃 Did you know?</b><span id="dyk"></span></div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card"><h2>Richness by start hour</h2><div class="cv"><canvas id="c2"></canvas></div></div>
+    <div class="card"><h2>Richness by wind speed (km/h)</h2><div class="cv"><canvas id="c3"></canvas></div></div>
+    <div class="card"><h2>Rain by session (mm)</h2><div class="cv"><canvas id="c5"></canvas></div><p class="note" id="rnote"></p></div>
+  </section>
+
+  <section class="card sec" id="conditions">
+    <h2>Session conditions</h2>
+    <div class="scroll"><table id="cnd"><caption class="sr-only">Conditions for each session</caption></table></div>
+    <p class="note">Missing values show as a dash. Rain classes: Dry = 0 mm, Light up to 20 mm, Medium 21-49 mm, Heavy 50 mm or more.</p>
+  </section>
+
+  <section class="grid sec" id="notes">
+    <div class="card"><h2>Session notes</h2><div id="notes-list"></div></div>
+    <div class="card"><h2>Incidental records</h2>
+      <table><thead><tr><th>Species</th><th>Date</th><th>Status</th></tr></thead>
+      <tbody><tr><td>Cirl Bunting</td><td>24/10</td><td>Unconfirmed (noted after timeout)</td></tr></tbody></table>
+      <p class="note">Kept out of richness calculations. Source: Notes column on S005.</p></div>
+  </section>
+
+  <section class="card sec">
+    <h2>Species by session</h2>
+    <div class="scroll"><table id="grid"><caption class="sr-only">Presence matrix</caption></table></div>
+    <h2 style="margin-top:16px">Species in filtered sessions</h2><div id="list"></div>
+  </section>
+
+  <section class="card sec" id="species">
+    <h2>Species guide</h2>
+    <div class="sg" id="sg" role="list"></div>
+    <p class="note">Click a card to filter the whole dashboard to that species. Each links to its Wikipedia page.</p>
+  </section>
+
+  <p class="note">Start hour is the time each count began (24-hour clock). Merlin Sound ID detections are treated as identification records, not independently verified presence.</p>
+  <footer class="copyright">© 2026 Melanie van Enter · All Rights Reserved · Garden Bird Survey Dashboard<br>
+  Bird identification records are based on Merlin Sound ID detections. Bird photographs retain their respective author credits and licences.</footer>
+</main>
+</div>
+
+<script>
+const SHEET_CSV_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vTBiaSWQQ8Pbt8uWfbTiWlSV6aZEmzjNmSOJ7tboS8yR14uPpNZbuGizy11VGwNggqU_fXKk0OUKqRx/pub?output=csv';
+const ALIAS={'Common Redpoll':'Redpoll','Lesser Redpoll':'Redpoll','Southern Black-backed Gull':'Kelp Gull','Common Blackbird':'Eurasian Blackbird','Common Starling':'European Starling','Spur-winged Plover':'Masked Lapwing'};
+const COMPASS=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+const TOD_ORDER=['Early morning','Mid-morning','Late morning','Midday','Afternoon','Evening'];
+const SPECIES_INFO={
+'Redpoll':['Acanthis flammea','Fringillidae','Introduced','Small streaky finch with a red forehead, often in flocks. In NZ it is the Lesser Redpoll.','Lesser_redpoll'],
+'European Greenfinch':['Chloris chloris','Fringillidae','Introduced','Stocky olive-green finch with yellow wing flashes and a wheezy call.','European_greenfinch'],
+'Eurasian Blackbird':['Turdus merula','Turdidae','Introduced','Males are glossy black with an orange bill; females are brown. Sings at dawn and dusk.','Common_blackbird'],
+'Kelp Gull':['Larus dominicanus','Laridae','Native','Large black-backed gull, known in NZ as karoro or the southern black-backed gull.','Kelp_gull'],
+'Eurasian Skylark':['Alauda arvensis','Alaudidae','Introduced','Streaky ground bird that sings in a long hovering flight over open ground.','Eurasian_skylark'],
+'House Sparrow':['Passer domesticus','Passeridae','Introduced','Brought to NZ in 1859 and common around houses. Males have a black bib.','House_sparrow'],
+'European Starling':['Sturnus vulgaris','Sturnidae','Introduced','Glossy, speckled and noisy, a skilled mimic that feeds on lawns.','Common_starling'],
+'Masked Lapwing':['Vanellus miles','Charadriidae','Native','Large plover with yellow face wattles, also called spur-winged plover. Reached NZ on its own in the 1930s.','Masked_lapwing'],
+'European Goldfinch':['Carduelis carduelis','Fringillidae','Introduced','Red face and gold wing bars with a tinkling call, often feeding on seed heads.','European_goldfinch'],
+'Silvereye':['Zosterops lateralis','Zosteropidae','Native','Small green bird with a white eye ring, known as tauhou. Reached NZ on its own in the 1850s.','Silvereye'],
+'New Zealand Fantail':['Rhipidura fuliginosa','Rhipiduridae','Native','Small, restless insect eater with a fanned tail, known as pīwakawaka.','New_Zealand_fantail'],
+'Common Chaffinch':['Fringilla coelebs','Fringillidae','Introduced','Pinkish-brown finch with white wing bars, brought to NZ in the 1860s.','Common_chaffinch']};
+
+let sessions=[];const charts={};let ac,ac2,mut,bd;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const windClass=k=>k<15?'Calm':k<25?'Moderate':'Windy';
+const rainClass=s=>isNaN(s.rainMm)?'Not recorded':s.rainMm<=0?'Dry':s.rainMm<=20?'Light':s.rainMm<50?'Medium':'Heavy';
+const chanceClass=s=>isNaN(s.rainChance)?'Not recorded':s.rainChance<=20?'Low':s.rainChance<=60?'Medium':'High';
+const fmt=(v,d=1)=>(v==null||isNaN(v))?'-':(Math.round(v*10**d)/10**d).toString();
+
+function parseCSV(t){const rows=[];let r=[],f='',q=false;
+for(let i=0;i<t.length;i++){const c=t[i];
+if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+else if(c==='"')q=true;else if(c===','){r.push(f);f=''}
+else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;r.push(f);f='';rows.push(r);r=[]}else f+=c}
+if(f!==''||r.length){r.push(f);rows.push(r)}return rows}
+
+function toSessions(text){
+const rows=parseCSV(text).filter(r=>r.some(c=>c.trim()));if(!rows.length)return[];
+const header=rows.shift().map(h=>h.trim());
+const get=(row,n)=>{const i=header.indexOf(n);return i<0?'':(row[i]||'').trim()};
+const norm=v=>{const c=String(v||'').replace(/<br\s*\/?\s*>/gi,'\n').replace(/<[^>]*>/g,'').replace(/&nbsp;|&#160;/gi,' ').replace(/\s+/g,' ').trim();
+if(!c)return'';const a=Object.keys(ALIAS).find(k=>k.toLowerCase()===c.toLowerCase());if(a)return ALIAS[a];
+return Object.keys(SPECIES_INFO).find(k=>k.toLowerCase()===c.toLowerCase())||c};
+const out=[];
+rows.forEach((row,idx)=>{
+const dateRaw=get(row,'Date'),birds=get(row,'Birds_Recorded');if(!dateRaw||!birds)return;
+const dm=dateRaw.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+const year=dm&&dm[3]?(dm[3].length===2?'20'+dm[3]:dm[3]):'2026';
+const dateISO=dm?`${year}-${dm[2].padStart(2,'0')}-${dm[1].padStart(2,'0')}`:'';
+const displayDate=dm?`${dm[1].padStart(2,'0')}/${dm[2].padStart(2,'0')}`:dateRaw;
+const tm=get(row,'Start_Time').match(/(\d{1,2}):(\d{2})\s*([ap]m)?/i);let startHour=12;
+if(tm){let hh=+tm[1];const ap=(tm[3]||'').toLowerCase();if(ap)hh=hh%12+(ap==='pm'?12:0);startHour=hh+(+tm[2])/60}
+let species=birds.replace(/<br\s*\/?\s*>/gi,'\n').split(/[;,\n]+/).map(norm).filter(Boolean);
+if(species.length===1&&/^(none|no birds)$/i.test(species[0]))species=[];
+species=[...new Set(species)];
+const noiseRaw=get(row,'Background_Noise')||'Low';
+const noise=/high/i.test(noiseRaw)?'High':/medium/i.test(noiseRaw)?'Medium':'Low';
+let wd=get(row,'Wind_Direction').toUpperCase().replace(/\s+/g,'');if(['-','—','N/A','NA','NONE'].includes(wd))wd='';
+const s={id:get(row,'Session_ID')||`S${String(idx+1).padStart(3,'0')}`,dateISO,displayDate,startHour,endTime:get(row,'End_Time'),
+windKmh:parseFloat(get(row,'Wind_Kmh'))||0,noise,noiseRaw,
+timeOfDay:(get(row,'Time_of_Day')||'Unknown').toLowerCase().replace(/^./,c=>c.toUpperCase()),windDir:wd,
+weather:get(row,'Weather_Condition'),cloudPct:parseFloat(get(row,'Cloud_Cover_Pct')),rainMm:parseFloat(get(row,'Rain_mm')),
+rainChance:parseFloat(get(row,'Rain_Chance_Pct').replace('%','')),humidity:parseFloat(get(row,'Humidity_Pct')),
+tempC:parseFloat(get(row,'Temperature_C')),notes:get(row,'Notes'),species};
+s._k=dateISO+String(Math.round(startHour*100)).padStart(4,'0');out.push(s)});
+return out.sort((a,b)=>a._k<b._k?-1:a._k>b._k?1:0)}
+
+async function loadData(){
+const note=$('srcnote');
+try{const res=await fetch(SHEET_CSV_URL+'?t='+Date.now());if(!res.ok)throw 0;
+const p=toSessions(await res.text());if(!p.length)throw 0;sessions=p;
+note.textContent='Live from spreadsheet, last loaded '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'. Auto-refreshes every 5 min.'}
+catch(e){note.textContent='Could not load the live spreadsheet. Check its published CSV link and sharing settings.'}
+populateFilters();render()}
+
+const fT=$('fT'),fN=$('fN'),fW=$('fW'),fWd=$('fWd'),fRn=$('fRn'),fCh=$('fCh'),fS=$('fS'),fD=$('fD');
+const ALL=[fT,fN,fW,fS,fD,fWd,fRn,fCh];
+function populateFilters(){
+const keep={S:fS.value,D:fD.value,T:fT.value,Wd:fWd.value};
+[fS,fD,fT,fWd].forEach(f=>f.length=1);
+[...new Set(sessions.flatMap(s=>s.species))].sort().forEach(sp=>fS.add(new Option(sp)));
+sessions.forEach(s=>fD.add(new Option(s.displayDate,s.id)));
+const idx=(a,o)=>{const i=o.indexOf(a);return i<0?99:i};
+[...new Set(sessions.map(s=>s.timeOfDay))].sort((a,b)=>idx(a,TOD_ORDER)-idx(b,TOD_ORDER)).forEach(t=>fT.add(new Option(t)));
+[...new Set(sessions.map(s=>s.windDir||'Not recorded'))].sort((a,b)=>idx(a,COMPASS)-idx(b,COMPASS)).forEach(d=>fWd.add(new Option(d)));
+if([...fS.options].some(o=>o.value===keep.S))fS.value=keep.S;
+if([...fD.options].some(o=>o.value===keep.D))fD.value=keep.D;
+if([...fT.options].some(o=>o.value===keep.T))fT.value=keep.T;
+if([...fWd.options].some(o=>o.value===keep.Wd))fWd.value=keep.Wd}
+
+function getFiltered(){return sessions.filter(s=>{
+if(fT.value!=='All'&&s.timeOfDay!==fT.value)return false;
+if(fN.value!=='All'&&s.noise!==fN.value)return false;
+if(fW.value!=='All'&&windClass(s.windKmh)!==fW.value)return false;
+if(fWd.value!=='All'&&(s.windDir||'Not recorded')!==fWd.value)return false;
+if(fRn.value!=='All'&&rainClass(s)!==fRn.value)return false;
+if(fCh.value!=='All'&&chanceClass(s)!==fCh.value)return false;
+if(fS.value!=='All'&&!s.species.some(n=>n.toLowerCase()===fS.value.toLowerCase()))return false;
+if(fD.value!=='All'&&s.id!==fD.value)return false;return true})}
+
+function makeChart(id,cfg){if(charts[id])charts[id].destroy();const c=$(id);if(c)charts[id]=new Chart(c,cfg)}
+
+function render(){
+const sel=getFiltered();
+$('k1').textContent=sel.length;
+const all=[...new Set(sel.flatMap(s=>s.species))];
+$('k2').textContent=all.length;
+$('k3').textContent=sel.length?(sel.reduce((a,s)=>a+s.species.length,0)/sel.length).toFixed(1):'-';
+$('k4').textContent=sel.length?sel[sel.length-1].species.length:'-';
+const wr=sel.filter(s=>!isNaN(s.rainMm));
+$('k5').textContent=wr.length?fmt(wr.reduce((a,s)=>a+s.rainMm,0)):'-';
+$('rnote').textContent=wr.length?'':'No rain readings yet. Fill in Rain_mm (use 0 for dry counts).';
+
+// Survey activity: area line
+const ctx=$('c1').getContext('2d');const g=ctx.createLinearGradient(0,0,0,230);
+g.addColorStop(0,ac+'55');g.addColorStop(1,ac+'05');
+makeChart('c1',{type:'line',data:{labels:sel.map(s=>s.displayDate),datasets:[{data:sel.map(s=>s.species.length),borderColor:ac,backgroundColor:g,fill:true,tension:.4,pointRadius:4,pointBackgroundColor:'#fff',pointBorderColor:ac,pointBorderWidth:2}]},
+options:{plugins:{legend:{display:false}},scales:{y:{title:{display:true,text:'Species'},beginAtZero:true,ticks:{stepSize:1}},x:{grid:{display:false}}},
+onClick:(e,els)=>{if(!els.length)return;fD.value=sel[els[0].index].id;render()}}});
+
+makeChart('c2',{type:'scatter',data:{datasets:[{data:sel.map(s=>({x:s.startHour,y:s.species.length})),backgroundColor:ac}]},
+options:{plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Hour of day'},min:6,max:20},y:{title:{display:true,text:'Species'},beginAtZero:true,ticks:{stepSize:1}}}}});
+makeChart('c3',{type:'scatter',data:{datasets:[{data:sel.map(s=>({x:s.windKmh,y:s.species.length})),backgroundColor:ac}]},
+options:{plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Wind (km/h)'},beginAtZero:true},y:{title:{display:true,text:'Species'},beginAtZero:true,ticks:{stepSize:1}}}}});
+makeChart('c5',{type:'bar',data:{labels:sel.map(s=>s.displayDate),datasets:[{data:sel.map(s=>isNaN(s.rainMm)?null:s.rainMm),backgroundColor:ac2,borderRadius:4}]},
+options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+' mm'}}},scales:{y:{title:{display:true,text:'Rain (mm)'},beginAtZero:true},x:{grid:{display:false}}}}});
+
+// Top species bars
+const freq=all.map(sp=>[sp,sel.filter(s=>s.species.includes(sp)).length]).sort((a,b)=>b[1]-a[1]).slice(0,6);
+$('top5').innerHTML=freq.length?freq.map(([sp,n])=>{const p=Math.round(n/sel.length*100);
+return `<div class="tr"><span>${esc(sp)}</span><div class="bar"><i style="width:${p}%"></i></div><b>${n}</b><em>${p}%</em></div>`}).join(''):'<span class="note">No species in current filter.</span>';
+
+// Conditions
+$('cnd').innerHTML='<thead><tr><th>Date</th><th>Time</th><th>Weather</th><th>Cloud %</th><th>Noise</th><th>Wind km/h</th><th>Dir</th><th>Rain mm</th><th>Rain class</th><th>Rain chance %</th><th>Temp °C</th><th>Humidity %</th><th>Species</th></tr></thead><tbody>'+
+sel.map(s=>`<tr><td>${esc(s.displayDate)}</td><td>${esc(s.timeOfDay)}${s.endTime?'<br><small>'+esc(s.endTime)+'</small>':''}</td><td>${esc(s.weather||'-')}</td><td>${fmt(s.cloudPct,0)}</td><td>${esc(s.noiseRaw||s.noise)}</td><td>${fmt(s.windKmh)}</td><td>${esc(s.windDir||'-')}</td><td>${fmt(s.rainMm)}</td><td>${rainClass(s)}</td><td>${fmt(s.rainChance)}</td><td>${fmt(s.tempC)}</td><td>${fmt(s.humidity,0)}</td><td>${s.species.length}</td></tr>`).join('')+'</tbody>';
+
+// Notes
+const wn=sel.filter(s=>s.notes&&s.notes.trim());
+$('notes-list').innerHTML=wn.length?'<ul style="margin:0;padding-left:18px;font-size:13px">'+wn.map(s=>`<li><strong>${esc(s.displayDate)}</strong>: ${esc(s.notes)}</li>`).join('')+'</ul>':'<p class="note" style="margin:0">No notes for the current filter.</p>';
+
+renderHeatmap(sel,all);
+
+// Matrix + list
+const ms=[...all].sort();
+$('grid').innerHTML='<thead><tr><th>Species</th>'+sel.map(s=>`<th>${esc(s.displayDate)}</th>`).join('')+'</tr></thead><tbody>'+
+ms.map(sp=>`<tr><td>${esc(sp)}</td>`+sel.map(s=>`<td>${s.species.includes(sp)?'<span class="dot" aria-label="present">●</span>':''}</td>`).join('')+'</tr>').join('')+'</tbody>';
+$('list').innerHTML=all.length?all.map(sp=>`<span class="tag">${esc(sp)}</span>`).join(''):'<span class="note">No species in current filter.</span>';
+renderGuide(all)}
+
+function renderHeatmap(sel,all){
+const t=$('heatmap');const present=[...new Set(sel.map(s=>s.timeOfDay))];
+const bins=TOD_ORDER.filter(x=>present.includes(x)).concat(present.filter(x=>!TOD_ORDER.includes(x)));
+if(!all.length||!bins.length){t.innerHTML='<tbody><tr><td class="note">No data for the current filter.</td></tr></tbody>';$('dyk').textContent='Add more sessions to see patterns.';return}
+const cnt={};let max=0;
+all.forEach(sp=>{cnt[sp]={};bins.forEach(b=>{const n=sel.filter(s=>s.timeOfDay===b&&s.species.includes(sp)).length;cnt[sp][b]=n;if(n>max)max=n})});
+const tot=sp=>bins.reduce((a,b)=>a+cnt[sp][b],0);
+const ord=[...all].sort((a,b)=>tot(b)-tot(a));
+const style=n=>{if(n<=0)return'background:color-mix(in srgb,var(--bd) 35%,var(--card));color:var(--mut)';
+const x=n/max;return `background:color-mix(in srgb,var(--ac) ${Math.round(12+x*78)}%,var(--card));color:${x>.55?'#fff':'var(--tx)'}`};
+t.innerHTML='<thead><tr><th>Species</th>'+bins.map(b=>`<th>${esc(b)}</th>`).join('')+'</tr></thead><tbody>'+
+ord.map(sp=>`<tr><td>${esc(sp)}</td>`+bins.map(b=>{const n=cnt[sp][b];return `<td class="heat-cell" style="${style(n)}" title="${esc(sp)}, ${esc(b)}: ${n} session${n===1?'':'s'}">${n||''}</td>`}).join('')+'</tr>').join('')+'</tbody>';
+const avg=bins.map(b=>{const ss=sel.filter(s=>s.timeOfDay===b);return[b,ss.reduce((a,s)=>a+s.species.length,0)/ss.length]}).sort((a,b)=>b[1]-a[1])[0];
+$('dyk').textContent=`${avg[0]} sessions averaged ${avg[1].toFixed(1)} species, the highest of any time of day in the current filter.`}
+
+function renderGuide(all){
+const sel=fS.value;const show=all.length?all:Object.keys(SPECIES_INFO);
+$('sg').innerHTML=show.map(name=>{
+const [sci,fam,st,desc,wiki]=SPECIES_INFO[name]||['-','-','-','No description available.',name.replace(/ /g,'_')];
+return `<article class="sc${sel===name?' selected':''}" role="listitem" tabindex="0" data-species="${esc(name)}" aria-label="${esc(name)}. Click to filter dashboard to this species.">
+<img data-wiki-title="${esc(wiki)}" data-bird-name="${esc(name)}" alt="" loading="lazy">
+<span class="bdg">${esc(st)}</span><strong>${esc(name)}</strong><br><i>${esc(sci)}</i><br><small>${esc(fam)}</small>
+<p style="margin:6px 0 4px">${esc(desc)}</p><a href="https://en.wikipedia.org/wiki/${esc(wiki)}" target="_blank" rel="noopener">Wikipedia ↗</a></article>`}).join('');
+loadBirdImages()}
+
+/* Bird images: local birds/ folder first, then Wikipedia, with Commons credit */
+const imgCache={};
+function localPaths(t){const v=new Set([t,t.toLowerCase(),t.replace(/_([a-z])/g,(_,c)=>'_'+c.toUpperCase())]);
+if(/skylark/i.test(t))['European_skylark','European_Skylark','Eurasian_Skylark'].forEach(x=>v.add(x));
+if(/blackbird/i.test(t))['Common_blackbird','Common_Blackbird'].forEach(x=>v.add(x));
+const p=[];for(const x of v)p.push('birds/'+x+'.jpg','birds/'+x+'.jpeg','birds/'+x+'.png','birds/'+x+'.webp');return p}
+function probe(title){return new Promise(res=>{const ps=localPaths(title);let i=0;
+(function next(){if(i>=ps.length)return res(null);const p=ps[i++],im=new Image();im.onload=()=>res({src:p,local:true});im.onerror=next;im.src=p})()})}
+async function fetchJson(url,n=3){for(let i=0;i<n;i++){try{const r=await fetch(url);if(r.status===503||r.status===429){await new Promise(x=>setTimeout(x,(2+i*3)*1000));continue}
+if(!r.ok)throw 0;return await r.json()}catch(e){await new Promise(x=>setTimeout(x,(1+i)*1500))}}return null}
+async function wikiImage(title){
+const d=await fetchJson('https://en.wikipedia.org/w/api.php?action=query&format=json&prop=pageimages&piprop=thumbnail|name&pithumbsize=600&redirects=1&titles='+encodeURIComponent(title)+'&origin=*');
+const p=Object.values(d?.query?.pages||{})[0];return p?.thumbnail?{src:p.thumbnail.source,file:p.pageimage||''}:null}
+async function credit(file){
+const d=await fetchJson('https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=extmetadata&titles='+encodeURIComponent('File:'+file)+'&origin=*');
+const m=Object.values(d?.query?.pages||{})[0]?.imageinfo?.[0]?.extmetadata;if(!m)return null;
+const a=new DOMParser().parseFromString(m.Artist?m.Artist.value:'','text/html').body.textContent.trim();
+return{artist:a||'Unknown author',lic:m.LicenseShortName?.value||'See file page',licUrl:m.LicenseUrl?.value||''}}
+function showImg(img,info){
+if(!img.isConnected)return;const name=img.dataset.birdName;
+if(!info){img.alt=name+' photo unavailable';return}
+img.alt=name;img.src=info.src;
+if(img.nextElementSibling?.classList.contains('cr'))return;
+const cr=document.createElement('div');cr.className='cr';
+if(info.local){cr.textContent='Photo: local copy (see Wikipedia for source)';img.after(cr);return}
+if(!info.file)return;
+credit(info.file).then(c=>{if(!img.isConnected||img.nextElementSibling?.classList.contains('cr'))return;
+const u='https://commons.wikimedia.org/wiki/File:'+encodeURIComponent(info.file);
+cr.innerHTML=c?`Photo: ${esc(c.artist)}, ${c.licUrl?`<a href="${esc(c.licUrl)}" target="_blank" rel="noopener">${esc(c.lic)}</a>`:esc(c.lic)} (<a href="${u}" target="_blank" rel="noopener">Commons</a>)`:`Photo: <a href="${u}" target="_blank" rel="noopener">see Commons for credit</a>`;
+img.after(cr)})}
+function loadBirdImages(){
+document.querySelectorAll('#sg img[data-wiki-title]').forEach(img=>{
+const t=img.dataset.wikiTitle;
+if(!imgCache[t])imgCache[t]=probe(t).then(l=>l||wikiImage(t));
+imgCache[t].then(info=>showImg(img,info))})}
+
+function refreshColours(){const cs=getComputedStyle(document.documentElement);
+ac=cs.getPropertyValue('--ac').trim();ac2=cs.getPropertyValue('--ac2').trim();mut=cs.getPropertyValue('--mut').trim();bd=cs.getPropertyValue('--bd').trim();
+Chart.defaults.color=mut;Chart.defaults.borderColor=bd}
+function setTheme(t,skip){document.documentElement.dataset.theme=t;refreshColours();
+$('tl').setAttribute('aria-pressed',t==='light');$('td').setAttribute('aria-pressed',t==='dark');if(!skip)render()}
+
+ALL.forEach(el=>el.addEventListener('change',render));
+$('resetFilters').addEventListener('click',()=>{ALL.forEach(el=>el.value='All');render()});
+const sg=$('sg');
+const toggle=sp=>{fS.value=fS.value===sp?'All':sp;render()};
+sg.addEventListener('click',e=>{if(e.target.closest('a'))return;const c=e.target.closest('.sc');if(c)toggle(c.dataset.species)});
+sg.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('sc')){e.preventDefault();toggle(e.target.dataset.species)}});
+$('tl').addEventListener('click',()=>setTheme('light'));
+$('td').addEventListener('click',()=>setTheme('dark'));
+document.querySelectorAll('.nav a').forEach(a=>a.addEventListener('click',()=>{document.querySelectorAll('.nav a').forEach(x=>x.classList.remove('on'));a.classList.add('on')}));
+
+Chart.defaults.maintainAspectRatio=false;
+refreshColours();
+setTheme(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light',true);
+loadData();
+setInterval(loadData,5*60*1000);
+</script>
+</body>
+</html>
