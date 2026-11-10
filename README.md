@@ -19,7 +19,7 @@ An interactive dashboard for a 30-day garden bird survey in Selwyn, Canterbury, 
 - **Light and dark themes**, and a layout that works on phones
 
   
-There is also a [garden bird sound poster]([poster.html](https://mvanenter.github.io/garden-birds/poster.html)) that goes with the survey.
+There is also a [garden bird sound poster](poster.html) that goes with the survey.
  
 ## Method
  
@@ -28,6 +28,7 @@ There is also a [garden bird sound poster]([poster.html](https://mvanenter.githu
 - **Count:** one 10-minute session per day, recorded with Merlin Sound ID
 - **Recorded per session:** date, birds detected, time of day, start and end time, temperature, wind speed and direction, weather, cloud cover, rain, humidity, background noise and notes
 - **Weather:** taken from a local weather app at the time of each count
+  
 ## How it works
  
 1. Sessions are entered in a Google Sheet that is published to the web as CSV.
